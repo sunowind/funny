@@ -1,0 +1,16 @@
+name = "funny-site"
+main = "./workers/app.ts"
+compatibility_date = "2025-04-01"
+upload_source_maps = true
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_id = "62215e58-0a76-45a9-b679-c89a63138be5"
+database_name = "db"
+
+[assets]
+directory = "./public/"
+binding = "ASSETS" 

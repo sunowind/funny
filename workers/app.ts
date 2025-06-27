@@ -1,19 +1,21 @@
-import { Hono } from "hono";
-import { createRequestHandler } from "react-router";
+import { Hono } from 'hono'
+import { createRequestHandler } from 'react-router'
+import auth from './auth/login'
 
-const app = new Hono();
+const app = new Hono()
 
-// Add more routes here
+// 挂载认证相关路由
+app.route('/api/auth', auth)
 
-app.get("*", (c) => {
+// SSR 路由兜底，必须放在最后
+app.get('*', (c) => {
   const requestHandler = createRequestHandler(
-    () => import("virtual:react-router/server-build"),
+    () => import('virtual:react-router/server-build'),
     import.meta.env.MODE,
-  );
-
+  )
   return requestHandler(c.req.raw, {
     cloudflare: { env: c.env, ctx: c.executionCtx },
-  });
-});
+  })
+})
 
-export default app;
+export default app
