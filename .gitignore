@@ -17,3 +17,6 @@
 /public/build/
 .env
 .env.*
+
+.cursor/
+screenshot/
