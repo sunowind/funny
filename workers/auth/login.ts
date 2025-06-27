@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { z } from 'zod';
 import { findUserByIdentifier } from '../db/user';
-import { hashPassword, verifyPassword } from '../utils/hash';
+import { verifyPassword } from '../utils/hash';
 import { createToken } from '../utils/jwt';
 
 const loginSchema = z.object({
@@ -13,9 +13,10 @@ const loginSchema = z.object({
 
 const loginRoute = new Hono();
 
+loginRoute.get('/*', c => c.text('login GET ok'));
 
 loginRoute.post('/login', async (c) => {
-  const db = c.env.DB as D1Database;
+  const db = (c.env && (c.env as any).DB) || (globalThis as any).__TEST_DB__;
   
   const body = await c.req.json();
   const parse = loginSchema.safeParse(body);
@@ -24,16 +25,13 @@ loginRoute.post('/login', async (c) => {
   }
   const { identifier, password, remember } = parse.data;
 
-  console.log(hashPassword("Admin@123"));
-  
-
   const user = await findUserByIdentifier(db, identifier);
   if (!user) {
-    return c.json({ error: 'findUserByIdentifier' }, 401);
+    return c.json({ error: '用户名或密码错误' }, 401);
   }
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
-    return c.json({ error: 'verifyPassword' }, 401);
+    return c.json({ error: '用户名或密码错误' }, 401);
   }
 
   const token = await createToken({
@@ -51,9 +49,6 @@ loginRoute.post('/login', async (c) => {
     maxAge: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 2,
   });
 
-  console.log(user);
-  
-
   return c.json({
     user: {
       id: user.id,
@@ -64,6 +59,5 @@ loginRoute.post('/login', async (c) => {
     message: '登录成功',
   });
 });
-
 
 export default loginRoute;
