@@ -23,3 +23,5 @@ screenshot/
 
 bun.lock
 story/*
+
+*.md

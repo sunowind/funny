@@ -1,38 +1,37 @@
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
-import { z } from 'zod';
+import { LoginUserSchema, type LoginUserInput } from '../db/schema';
 import { findUserByIdentifier } from '../db/user';
+import { getValidatedData, validate } from '../middleware/validation';
+import type { SafeUser } from '../types/api';
 import { verifyPassword } from '../utils/hash';
 import { createToken } from '../utils/jwt';
-
-const loginSchema = z.object({
-  identifier: z.string().min(3),
-  password: z.string().min(6),
-  remember: z.boolean().optional(),
-});
 
 const loginRoute = new Hono();
 
 loginRoute.get('/*', c => c.text('login GET ok'));
 
-loginRoute.post('/login', async (c) => {
+loginRoute.post('/login', validate({ json: LoginUserSchema }), async (c) => {
   try {
     const db = (c.env && (c.env as any).DB) || (globalThis as any).__TEST_DB__;
-    
-    const body = await c.req.json();
-    const parse = loginSchema.safeParse(body);
-    if (!parse.success) {
-      return c.json({ error: '用户名或密码错误' }, 401);
-    }
-    const { identifier, password, remember } = parse.data;
+    const { identifier, password } = getValidatedData<LoginUserInput>(c);
 
     const user = await findUserByIdentifier(db, identifier);
     if (!user) {
-      return c.json({ error: '用户名或密码错误' }, 401);
+      return c.json({
+        success: false,
+        error: 'Authentication failed',
+        message: 'Invalid username/email or password'
+      }, 401);
     }
+
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
-      return c.json({ error: '用户名或密码错误' }, 401);
+      return c.json({
+        success: false,
+        error: 'Authentication failed',
+        message: 'Invalid username/email or password'
+      }, 401);
     }
 
     const token = await createToken({
@@ -47,20 +46,33 @@ loginRoute.post('/login', async (c) => {
       secure: true,
       sameSite: 'Strict',
       path: '/',
-      maxAge: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 2,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
+    // Create safe user object (without password hash)
+    const safeUser: SafeUser = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      createdAt: user.createdAt
+    };
+
     return c.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatar: user.avatar,
+      success: true,
+      data: {
+        user: safeUser,
+        token
       },
-      message: '登录成功',
+      message: 'Login successful'
     });
   } catch (err) {
-    return c.json({ error: 'Internal Server Error' }, 500);
+    console.error('Login error:', err);
+    return c.json({
+      success: false,
+      error: 'Internal server error',
+      message: 'An unexpected error occurred'
+    }, 500);
   }
 });
 

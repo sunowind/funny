@@ -8,7 +8,7 @@ interface AuthContextProps {
     isLoading: boolean;
     hasError: boolean;
     errorMessage: string | null;
-    login: (identifier: string, password: string, remember?: boolean) => Promise<void>;
+    login: (identifier: string, password: string) => Promise<void>;
     logout: () => void;
 }
 
@@ -25,12 +25,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // 这里可实现自动登录/校验逻辑
     }, []);
 
-    const login = async (identifier: string, password: string, remember = false) => {
+    const login = async (identifier: string, password: string) => {
         setIsLoading(true);
         setHasError(false);
         setErrorMessage(null);
         try {
-            const res = await loginApi({ identifier, password, remember });
+            const res = await loginApi({ identifier, password });
             setUser(res.user);
         } catch (e: any) {
             setHasError(true);

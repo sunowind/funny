@@ -7,7 +7,6 @@ export function LoginForm() {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [remember, setRemember] = useState(false);
     const [touched, setTouched] = useState(false);
 
     const isIdentifierValid = identifier.length >= 3;
@@ -18,7 +17,7 @@ export function LoginForm() {
         e.preventDefault();
         setTouched(true);
         if (!canSubmit) return;
-        await login(identifier, password, remember);
+        await login(identifier, password);
     };
 
     return (
@@ -65,17 +64,7 @@ export function LoginForm() {
                     <div className="text-xs text-red-500 mt-1">密码至少6位</div>
                 )}
             </div>
-            <div className="flex items-center justify-between">
-                <label className="flex items-center text-sm">
-                    <input
-                        type="checkbox"
-                        className="mr-2"
-                        checked={remember}
-                        onChange={e => setRemember(e.target.checked)}
-                        disabled={isLoading}
-                    />
-                    记住我
-                </label>
+            <div className="flex justify-end">
                 <Button
                     type="submit"
                     disabled={!canSubmit}

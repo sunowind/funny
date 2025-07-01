@@ -1,11 +1,13 @@
 import { Hono } from 'hono'
 import { createRequestHandler } from 'react-router'
-import auth from './auth/login'
+import loginRoute from './auth/login'
+import registerRoute from './auth/register'
 
 const app = new Hono()
 
 // 挂载认证相关路由
-app.route('/api/auth', auth)
+app.route('/api/auth', loginRoute)
+app.route('/api/auth', registerRoute)
 
 // SSR 路由兜底，必须放在最后
 app.get('*', (c) => {
