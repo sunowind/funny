@@ -1,8 +1,12 @@
 {
   "name": "react-router-hono-fullstack-template",
+  "version": "1.0.0",
   "description": "A modern full-stack template powered by Cloudflare Workers, using Hono for backend APIs, React Router for frontend routing, and shadcn/ui for beautiful, accessible components styled with Tailwind CSS",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "cloudflare": {
     "label": "React Router + Hono Fullstack App",
     "products": [
@@ -20,14 +24,12 @@
     "@prisma/adapter-d1": "^6.10.1",
     "@prisma/client": "^6.10.1",
     "@radix-ui/react-slot": "^1.2.3",
-    "@types/react-router-dom": "^5.3.3",
     "bcrypt-ts": "^7.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "hono": "4.7.7",
     "isbot": "5.1.26",
     "lucide-react": "^0.523.0",
-    "prisma": "^6.1.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-router": "7.5.2",
@@ -45,10 +47,12 @@
     "@types/node": "22.14.1",
     "@types/react": "19.0.10",
     "@types/react-dom": "19.0.4",
+    "@types/react-router-dom": "^5.3.3",
     "@types/testing-library__jest-dom": "^5.14.9",
     "@types/testing-library__react": "^10.0.1",
     "@vitejs/plugin-react": "^4.6.0",
     "jsdom": "^26.1.0",
+    "prisma": "^6.1.0",
     "tailwindcss": "4.1.1",
     "tw-animate-css": "^1.3.4",
     "typescript": "5.8.3",
@@ -58,19 +62,17 @@
     "wrangler": "4.13.2"
   },
   "scripts": {
+    "start": "npm run dev",
     "build": "vite build",
     "dev": "vite dev",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:migrate:reset": "prisma migrate reset",
-    "db:push": "prisma db push",
-    "db:studio": "prisma studio",
     "db:deploy": "node scripts/deploy-schema.js",
-    "db:seed": "prisma db seed",
-    "wrangler:dev": "wrangler dev",
+    "server": "wrangler dev",
     "wrangler:deploy": "wrangler deploy",
     "deploy": "npm run db:generate && npm run db:deploy && npm run wrangler:deploy"
   }
