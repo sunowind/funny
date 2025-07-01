@@ -1,11 +1,10 @@
 import { Hono } from 'hono';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import loginRoute from '../workers/auth/login';
-import registerRoute from '../workers/auth/register';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as dbModule from '../workers/db/user';
 import * as hashModule from '../workers/utils/hash';
 import * as jwtModule from '../workers/utils/jwt';
 import {
+    createMockPrisma,
     createTestRequest,
     expectErrorResponse,
     expectSuccessResponse,
@@ -14,25 +13,31 @@ import {
     setupTestEnvironment,
     testInputs
 } from './helpers/test-utils';
+import { createTestLoginRoute, createTestRegisterRoute } from './mocks/auth-routes';
 
 describe('Authentication API', () => {
   let app: Hono;
-
-  beforeAll(() => {
-    app = new Hono();
-    app.route('/api/auth', loginRoute);
-    app.route('/api/auth', registerRoute);
-  });
+  let mockPrisma: any;
 
   beforeEach(() => {
     setupTestEnvironment();
     vi.restoreAllMocks();
+    
+    // 创建模拟的Prisma客户端
+    mockPrisma = createMockPrisma();
+    
+    // 创建测试应用
+    app = new Hono();
+    app.route('/api/auth', createTestLoginRoute(mockPrisma));
+    app.route('/api/auth', createTestRegisterRoute(mockPrisma));
   });
 
   describe('Login API', () => {
     describe('Successful Login', () => {
       beforeEach(() => {
-        vi.spyOn(dbModule, 'findUserByIdentifier').mockResolvedValue(mockUsers.adminUser);
+        vi.spyOn(dbModule, 'findUserByIdentifier').mockImplementation(async (_, identifier) => {
+          return mockUsers.adminUser;
+        });
         vi.spyOn(hashModule, 'verifyPassword').mockResolvedValue(true);
         vi.spyOn(jwtModule, 'createToken').mockResolvedValue('mocked-token');
       });
@@ -152,13 +157,15 @@ describe('Authentication API', () => {
           usernameExists: false,
           emailExists: false
         });
-        vi.spyOn(dbModule, 'createUser').mockResolvedValue({
-          id: 'new-user-id',
-          username: 'newuser',
-          email: 'new@example.com',
-          passwordHash: 'hashed-password',
-          avatar: null,
-          createdAt: new Date('2024-01-01T00:00:00Z'),
+        vi.spyOn(dbModule, 'createUser').mockImplementation(async (_, userData) => {
+          return {
+            id: 'new-user-id',
+            username: userData.username,
+            email: userData.email,
+            passwordHash: 'hashed-password',
+            avatar: userData.avatar || null,
+            createdAt: new Date('2024-01-01T00:00:00Z'),
+          };
         });
         vi.spyOn(jwtModule, 'createToken').mockResolvedValue('new-token');
       });

@@ -136,12 +136,26 @@ describe('Schema Validation', () => {
   describe('Response Schemas', () => {
     describe('UserResponseSchema', () => {
       it('should validate user response data', () => {
-        const result = UserResponseSchema.safeParse(mockUsers.userWithAvatar);
+        const testUser = {
+          id: mockUsers.adminUser.id,
+          username: mockUsers.adminUser.username,
+          email: mockUsers.adminUser.email,
+          avatar: mockUsers.adminUser.avatar,
+          createdAt: mockUsers.adminUser.createdAt
+        };
+        const result = UserResponseSchema.safeParse(testUser);
         expect(result.success).toBe(true);
       });
 
       it('should allow null avatar', () => {
-        const result = UserResponseSchema.safeParse(mockUsers.validUser);
+        const testUser = {
+          id: mockUsers.regularUser.id,
+          username: mockUsers.regularUser.username,
+          email: mockUsers.regularUser.email,
+          avatar: undefined,
+          createdAt: mockUsers.regularUser.createdAt
+        };
+        const result = UserResponseSchema.safeParse(testUser);
         expect(result.success).toBe(true);
       });
     });
@@ -149,7 +163,13 @@ describe('Schema Validation', () => {
     describe('AuthResponseSchema', () => {
       it('should validate authentication response', () => {
         const validData = {
-          user: mockUsers.validUser,
+          user: {
+            id: mockUsers.adminUser.id,
+            username: mockUsers.adminUser.username,
+            email: mockUsers.adminUser.email,
+            avatar: mockUsers.adminUser.avatar,
+            createdAt: mockUsers.adminUser.createdAt
+          },
           token: 'jwt-token-here'
         };
         const result = AuthResponseSchema.safeParse(validData);

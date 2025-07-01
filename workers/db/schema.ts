@@ -26,8 +26,8 @@ export const UserResponseSchema = z.object({
   id: z.string(),
   username: z.string(),
   email: z.string(),
-  avatar: z.string().nullable(),
-  createdAt: z.date()
+  avatar: z.string().nullable().optional(),
+  createdAt: z.string()
 });
 
 export const AuthResponseSchema = z.object({
