@@ -1,64 +1,57 @@
 import { Hono } from 'hono';
-import { setCookie } from 'hono/cookie';
+import { createPrismaClient } from '../db/client';
 import { LoginUserSchema, type LoginUserInput } from '../db/schema';
 import { findUserByIdentifier } from '../db/user';
 import { getValidatedData, validate } from '../middleware/validation';
-import type { SafeUser } from '../types/api';
+import type { ApiResponse, AuthResponse, SafeUser } from '../types/api';
 import { verifyPassword } from '../utils/hash';
 import { createToken } from '../utils/jwt';
 
-const loginRoute = new Hono();
+const app = new Hono<{ Bindings: { DB: D1Database } }>();
 
-loginRoute.get('/*', c => c.text('login GET ok'));
-
-loginRoute.post('/login', validate({ json: LoginUserSchema }), async (c) => {
+app.post('/login', validate({ json: LoginUserSchema }), async (c) => {
   try {
-    const db = (c.env && (c.env as any).DB) || (globalThis as any).__TEST_DB__;
     const { identifier, password } = getValidatedData<LoginUserInput>(c);
-
-    const user = await findUserByIdentifier(db, identifier);
+    
+    // 创建 Prisma 客户端（使用 D1 适配器）
+    const prisma = createPrismaClient(c.env.DB);
+    
+    // 查找用户
+    const user = await findUserByIdentifier(prisma, identifier);
     if (!user) {
-      return c.json({
+      return c.json<ApiResponse<never>>({
         success: false,
         error: 'Authentication failed',
-        message: 'Invalid username/email or password'
+        message: 'Invalid credentials'
       }, 401);
     }
 
-    const valid = await verifyPassword(password, user.passwordHash);
-    if (!valid) {
-      return c.json({
+    // 验证密码
+    const isPasswordValid = await verifyPassword(password, user.passwordHash);
+    if (!isPasswordValid) {
+      return c.json<ApiResponse<never>>({
         success: false,
         error: 'Authentication failed',
-        message: 'Invalid username/email or password'
+        message: 'Invalid credentials'
       }, 401);
     }
 
-    const token = await createToken({
-      sub: user.id,
-      username: user.username,
-      email: user.email,
-      avatar: user.avatar,
-    });
-
-    setCookie(c, 'token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Strict',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    // Create safe user object (without password hash)
+    // 创建安全的用户对象（移除密码）
     const safeUser: SafeUser = {
       id: user.id,
       username: user.username,
       email: user.email,
       avatar: user.avatar,
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
     };
 
-    return c.json({
+    // 生成 JWT token
+    const token = await createToken({ userId: user.id, username: user.username });
+
+    // 设置 cookie
+    c.header('Set-Cookie', `token=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800`);
+
+    return c.json<ApiResponse<AuthResponse>>({
       success: true,
       data: {
         user: safeUser,
@@ -66,9 +59,10 @@ loginRoute.post('/login', validate({ json: LoginUserSchema }), async (c) => {
       },
       message: 'Login successful'
     });
-  } catch (err) {
-    console.error('Login error:', err);
-    return c.json({
+
+  } catch (error) {
+    console.error('Login error:', error);
+    return c.json<ApiResponse<never>>({
       success: false,
       error: 'Internal server error',
       message: 'An unexpected error occurred'
@@ -76,4 +70,4 @@ loginRoute.post('/login', validate({ json: LoginUserSchema }), async (c) => {
   }
 });
 
-export default loginRoute;
+export default app;

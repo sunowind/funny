@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateUserInput, UpdateUserInput } from '../workers/db/schema';
 import {
     checkUserExists,
@@ -9,48 +9,63 @@ import {
     updateUser
 } from '../workers/db/user';
 import {
-    createMockDb,
+    createMockPrisma,
     mockUsers,
     setupTestEnvironment,
     testInputs
 } from './helpers/test-utils';
 
-describe('Database Operations', () => {
-  let mockDb: any;
-  let mockStatement: any;
+// Mock the Prisma client creation
+vi.mock('../workers/db/client', () => ({
+  createPrismaClient: vi.fn(() => mockPrisma),
+}));
 
+let mockPrisma: any;
+
+describe('Database Operations', () => {
   beforeEach(() => {
     setupTestEnvironment();
-    const mocks = createMockDb();
-    mockDb = mocks.mockDb;
-    mockStatement = mocks.mockStatement;
+    mockPrisma = createMockPrisma();
   });
 
   describe('User Queries', () => {
     describe('findUserByIdentifier', () => {
       it('should return user when found by username', async () => {
-        mockStatement.first.mockResolvedValue(mockUsers.validUser);
+        mockPrisma.user.findFirst.mockResolvedValue(mockUsers.validUser);
 
-        const result = await findUserByIdentifier(mockDb, 'testuser');
+        const result = await findUserByIdentifier(mockPrisma, 'testuser');
 
-        expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT'));
-        expect(mockStatement.bind).toHaveBeenCalledWith('testuser', 'testuser');
+        expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
+          where: {
+            OR: [
+              { username: 'testuser' },
+              { email: 'testuser' }
+            ]
+          }
+        });
         expect(result).toEqual(mockUsers.validUser);
       });
 
       it('should return user when found by email', async () => {
-        mockStatement.first.mockResolvedValue(mockUsers.validUser);
+        mockPrisma.user.findFirst.mockResolvedValue(mockUsers.validUser);
 
-        const result = await findUserByIdentifier(mockDb, 'test@example.com');
+        const result = await findUserByIdentifier(mockPrisma, 'test@example.com');
 
-        expect(mockStatement.bind).toHaveBeenCalledWith('test@example.com', 'test@example.com');
+        expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
+          where: {
+            OR: [
+              { username: 'test@example.com' },
+              { email: 'test@example.com' }
+            ]
+          }
+        });
         expect(result).toEqual(mockUsers.validUser);
       });
 
       it('should return null when user not found', async () => {
-        mockStatement.first.mockResolvedValue(null);
+        mockPrisma.user.findFirst.mockResolvedValue(null);
 
-        const result = await findUserByIdentifier(mockDb, 'nonexistent');
+        const result = await findUserByIdentifier(mockPrisma, 'nonexistent');
 
         expect(result).toBeNull();
       });
@@ -58,19 +73,20 @@ describe('Database Operations', () => {
 
     describe('findUserById', () => {
       it('should return user when found', async () => {
-        mockStatement.first.mockResolvedValue(mockUsers.validUser);
+        mockPrisma.user.findUnique.mockResolvedValue(mockUsers.validUser);
 
-        const result = await findUserById(mockDb, '1');
+        const result = await findUserById(mockPrisma, '1');
 
-        expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('WHERE id = ?'));
-        expect(mockStatement.bind).toHaveBeenCalledWith('1');
+        expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+          where: { id: '1' }
+        });
         expect(result).toEqual(mockUsers.validUser);
       });
 
       it('should return null when user not found', async () => {
-        mockStatement.first.mockResolvedValue(null);
+        mockPrisma.user.findUnique.mockResolvedValue(null);
 
-        const result = await findUserById(mockDb, 'nonexistent');
+        const result = await findUserById(mockPrisma, 'nonexistent');
 
         expect(result).toBeNull();
       });
@@ -88,11 +104,18 @@ describe('Database Operations', () => {
           avatar: userData.avatar,
         };
 
-        mockStatement.first.mockResolvedValue(mockCreatedUser);
+        mockPrisma.user.create.mockResolvedValue(mockCreatedUser);
 
-        const result = await createUser(mockDb, userData);
+        const result = await createUser(mockPrisma, userData);
 
-        expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO users'));
+        expect(mockPrisma.user.create).toHaveBeenCalledWith({
+          data: {
+            username: userData.username,
+            email: userData.email,
+            passwordHash: expect.any(String),
+            avatar: userData.avatar,
+          }
+        });
         expect(result).toEqual(mockCreatedUser);
       });
 
@@ -105,18 +128,26 @@ describe('Database Operations', () => {
           avatar: null,
         };
 
-        mockStatement.first.mockResolvedValue(mockCreatedUser);
+        mockPrisma.user.create.mockResolvedValue(mockCreatedUser);
 
-        const result = await createUser(mockDb, userDataWithoutAvatar);
+        const result = await createUser(mockPrisma, userDataWithoutAvatar);
 
+        expect(mockPrisma.user.create).toHaveBeenCalledWith({
+          data: {
+            username: userDataWithoutAvatar.username,
+            email: userDataWithoutAvatar.email,
+            passwordHash: expect.any(String),
+            avatar: null,
+          }
+        });
         expect(result.avatar).toBeNull();
       });
 
-      it('should throw error when user creation fails', async () => {
+      it('should handle creation errors properly', async () => {
         const userData: CreateUserInput = testInputs.validRegistration;
-        mockStatement.first.mockResolvedValue(null);
+        mockPrisma.user.create.mockRejectedValue(new Error('Database error'));
 
-        await expect(createUser(mockDb, userData)).rejects.toThrow('Failed to create user');
+        await expect(createUser(mockPrisma, userData)).rejects.toThrow('Database error');
       });
     });
 
@@ -131,11 +162,14 @@ describe('Database Operations', () => {
           ...updateData
         };
 
-        mockStatement.first.mockResolvedValue(mockUpdatedUser);
+        mockPrisma.user.update.mockResolvedValue(mockUpdatedUser);
 
-        const result = await updateUser(mockDb, '1', updateData);
+        const result = await updateUser(mockPrisma, '1', updateData);
 
-        expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('UPDATE users'));
+        expect(mockPrisma.user.update).toHaveBeenCalledWith({
+          where: { id: '1' },
+          data: updateData
+        });
         expect(result).toEqual(mockUpdatedUser);
       });
 
@@ -146,56 +180,45 @@ describe('Database Operations', () => {
           username: 'newusername'
         };
 
-        mockStatement.first.mockResolvedValue(mockUpdatedUser);
+        mockPrisma.user.update.mockResolvedValue(mockUpdatedUser);
 
-        const result = await updateUser(mockDb, '1', updateData);
+        const result = await updateUser(mockPrisma, '1', updateData);
 
-        expect(mockStatement.bind).toHaveBeenCalledWith('newusername', '1');
+        expect(mockPrisma.user.update).toHaveBeenCalledWith({
+          where: { id: '1' },
+          data: updateData
+        });
         expect(result?.username).toBe('newusername');
       });
 
       it('should return existing user when no updates provided', async () => {
-        mockStatement.first.mockResolvedValue(mockUsers.validUser);
+        mockPrisma.user.findUnique.mockResolvedValue(mockUsers.validUser);
 
-        const result = await updateUser(mockDb, '1', {});
+        const result = await updateUser(mockPrisma, '1', {});
 
-        expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT'));
+        expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+          where: { id: '1' }
+        });
         expect(result).toEqual(mockUsers.validUser);
       });
     });
 
     describe('deleteUser', () => {
       it('should delete user successfully', async () => {
-        mockStatement.run.mockResolvedValue({
-          success: true,
-          meta: { changes: 1 }
+        mockPrisma.user.delete.mockResolvedValue(mockUsers.validUser);
+
+        const result = await deleteUser(mockPrisma, '1');
+
+        expect(mockPrisma.user.delete).toHaveBeenCalledWith({
+          where: { id: '1' }
         });
-
-        const result = await deleteUser(mockDb, '1');
-
-        expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM users WHERE id = ?');
-        expect(mockStatement.bind).toHaveBeenCalledWith('1');
         expect(result).toBe(true);
       });
 
-      it('should return false when no user deleted', async () => {
-        mockStatement.run.mockResolvedValue({
-          success: true,
-          meta: { changes: 0 }
-        });
+      it('should return false when user not found', async () => {
+        mockPrisma.user.delete.mockRejectedValue(new Error('User not found'));
 
-        const result = await deleteUser(mockDb, 'nonexistent');
-
-        expect(result).toBe(false);
-      });
-
-      it('should return false when operation fails', async () => {
-        mockStatement.run.mockResolvedValue({
-          success: false,
-          meta: { changes: 0 }
-        });
-
-        const result = await deleteUser(mockDb, '1');
+        const result = await deleteUser(mockPrisma, 'nonexistent');
 
         expect(result).toBe(false);
       });
@@ -205,13 +228,13 @@ describe('Database Operations', () => {
   describe('User Validation', () => {
     describe('checkUserExists', () => {
       it('should check if username and email exist', async () => {
-        mockStatement.first.mockResolvedValue({
-          usernameCount: 1,
-          emailCount: 0
-        });
+        mockPrisma.user.count
+          .mockResolvedValueOnce(1) // username count
+          .mockResolvedValueOnce(0); // email count
 
-        const result = await checkUserExists(mockDb, 'testuser', 'test@example.com');
+        const result = await checkUserExists(mockPrisma, 'testuser', 'test@example.com');
 
+        expect(mockPrisma.user.count).toHaveBeenCalledTimes(2);
         expect(result).toEqual({
           usernameExists: true,
           emailExists: false
@@ -219,12 +242,11 @@ describe('Database Operations', () => {
       });
 
       it('should return false when neither exists', async () => {
-        mockStatement.first.mockResolvedValue({
-          usernameCount: 0,
-          emailCount: 0
-        });
+        mockPrisma.user.count
+          .mockResolvedValueOnce(0) // username count
+          .mockResolvedValueOnce(0); // email count
 
-        const result = await checkUserExists(mockDb, 'newuser', 'new@example.com');
+        const result = await checkUserExists(mockPrisma, 'newuser', 'new@example.com');
 
         expect(result).toEqual({
           usernameExists: false,
@@ -233,14 +255,24 @@ describe('Database Operations', () => {
       });
 
       it('should exclude specific user ID when checking', async () => {
-        mockStatement.first.mockResolvedValue({
-          usernameCount: 0,
-          emailCount: 0
+        mockPrisma.user.count
+          .mockResolvedValueOnce(0) // username count
+          .mockResolvedValueOnce(0); // email count
+
+        const result = await checkUserExists(mockPrisma, 'testuser', 'test@example.com', 'exclude-id');
+
+        expect(mockPrisma.user.count).toHaveBeenCalledWith({
+          where: {
+            username: 'testuser',
+            NOT: { id: 'exclude-id' }
+          }
         });
-
-        const result = await checkUserExists(mockDb, 'testuser', 'test@example.com', 'exclude-id');
-
-        expect(mockStatement.bind).toHaveBeenCalledWith('testuser', 'exclude-id', 'test@example.com', 'exclude-id');
+        expect(mockPrisma.user.count).toHaveBeenCalledWith({
+          where: {
+            email: 'test@example.com',
+            NOT: { id: 'exclude-id' }
+          }
+        });
         expect(result).toEqual({
           usernameExists: false,
           emailExists: false
@@ -248,9 +280,11 @@ describe('Database Operations', () => {
       });
 
       it('should handle null response gracefully', async () => {
-        mockStatement.first.mockResolvedValue(null);
+        mockPrisma.user.count
+          .mockResolvedValueOnce(0) // username count
+          .mockResolvedValueOnce(0); // email count
 
-        const result = await checkUserExists(mockDb, 'testuser', 'test@example.com');
+        const result = await checkUserExists(mockPrisma, 'testuser', 'test@example.com');
 
         expect(result).toEqual({
           usernameExists: false,

@@ -42,6 +42,12 @@ export interface UpdateUserRequest {
 // Sanitized user type (without password)
 export type SafeUser = Omit<User, 'passwordHash'>;
 
+// Authentication response type
+export interface AuthResponse {
+  user: SafeUser;
+  token: string;
+}
+
 // Auth context type
 export interface AuthUser extends SafeUser {
   token?: string;

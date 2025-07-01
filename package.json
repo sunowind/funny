@@ -17,6 +17,7 @@
     "publish": true
   },
   "dependencies": {
+    "@prisma/adapter-d1": "^6.10.1",
     "@prisma/client": "^6.10.1",
     "@radix-ui/react-slot": "^1.2.3",
     "@types/react-router-dom": "^5.3.3",
@@ -57,19 +58,20 @@
     "wrangler": "4.13.2"
   },
   "scripts": {
-    "build": "react-router build",
-    "cf-typegen": "wrangler types",
-    "deploy": "npm run build && wrangler deploy",
-    "dev": "react-router dev",
-    "server": "npm run build && wrangler dev",
+    "build": "vite build",
+    "dev": "vite dev",
+    "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "npm run build && vite preview",
-    "typecheck": "npm run cf-typegen && react-router typegen && tsc -b",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:reset": "prisma migrate reset",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:deploy": "node scripts/deploy-schema.js",
+    "db:seed": "prisma db seed",
+    "wrangler:dev": "wrangler dev",
+    "wrangler:deploy": "wrangler deploy",
+    "deploy": "npm run db:generate && npm run db:deploy && npm run wrangler:deploy"
   }
 }

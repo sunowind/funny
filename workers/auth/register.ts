@@ -1,92 +1,88 @@
 import { Hono } from 'hono';
-import { setCookie } from 'hono/cookie';
+import { createPrismaClient } from '../db/client';
 import { CreateUserSchema, type CreateUserInput } from '../db/schema';
 import { checkUserExists, createUser } from '../db/user';
 import { getValidatedData, validate } from '../middleware/validation';
-import type { SafeUser } from '../types/api';
+import type { ApiResponse, AuthResponse, SafeUser } from '../types/api';
 import { createToken } from '../utils/jwt';
 
-const registerRoute = new Hono();
+const app = new Hono<{ Bindings: { DB: D1Database } }>();
 
-registerRoute.post('/register', validate({ json: CreateUserSchema }), async (c) => {
+app.post('/register', validate({ json: CreateUserSchema }), async (c) => {
   try {
-    const db = (c.env && (c.env as any).DB) || (globalThis as any).__TEST_DB__;
     const userData = getValidatedData<CreateUserInput>(c);
-
-    // Check if username or email already exists
-    const existingUser = await checkUserExists(db, userData.username, userData.email);
     
-    if (existingUser.usernameExists) {
-      return c.json({
+    // 创建 Prisma 客户端（使用 D1 适配器）
+    const prisma = createPrismaClient(c.env.DB);
+
+    // 检查用户名和邮箱是否已存在
+    const { usernameExists, emailExists } = await checkUserExists(
+      prisma,
+      userData.username,
+      userData.email
+    );
+
+    if (usernameExists) {
+      return c.json<ApiResponse<never>>({
         success: false,
         error: 'Username already exists',
-        message: 'This username is already taken'
+        message: 'Please choose a different username'
       }, 409);
     }
-    
-    if (existingUser.emailExists) {
-      return c.json({
+
+    if (emailExists) {
+      return c.json<ApiResponse<never>>({
         success: false,
         error: 'Email already exists',
-        message: 'This email is already registered'
+        message: 'An account with this email already exists'
       }, 409);
     }
 
-    // Create new user
-    const user = await createUser(db, userData);
+    // 创建新用户
+    const newUser = await createUser(prisma, userData);
 
-    // Generate JWT token
-    const token = await createToken({
-      sub: user.id,
-      username: user.username,
-      email: user.email,
-      avatar: user.avatar,
-    });
-
-    // Set HTTP-only cookie
-    setCookie(c, 'token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Strict',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    // Create safe user object (without password hash)
+    // 创建安全的用户对象（移除密码）
     const safeUser: SafeUser = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      avatar: user.avatar,
-      createdAt: user.createdAt
+      id: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
+      avatar: newUser.avatar,
+      createdAt: newUser.createdAt,
     };
 
-    return c.json({
+    // 生成 JWT token
+    const token = await createToken({ userId: newUser.id, username: newUser.username });
+
+    // 设置 cookie
+    c.header('Set-Cookie', `token=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800`);
+
+    return c.json<ApiResponse<AuthResponse>>({
       success: true,
       data: {
         user: safeUser,
         token
       },
-      message: 'User registered successfully'
+      message: 'Registration successful'
     }, 201);
-  } catch (err) {
-    console.error('Registration error:', err);
+
+  } catch (error) {
+    console.error('Registration error:', error);
     
-    // Handle database constraint violations
-    if (err instanceof Error && err.message.includes('UNIQUE constraint failed')) {
-      return c.json({
+    // 处理数据库约束错误
+    if (error instanceof Error && error.message.includes('UNIQUE constraint')) {
+      return c.json<ApiResponse<never>>({
         success: false,
         error: 'User already exists',
-        message: 'Username or email already exists'
+        message: 'Username or email already taken'
       }, 409);
     }
-    
-    return c.json({
+
+    return c.json<ApiResponse<never>>({
       success: false,
       error: 'Internal server error',
-      message: 'An unexpected error occurred during registration'
+      message: 'An unexpected error occurred'
     }, 500);
   }
 });
 
-export default registerRoute; 
+export default app; 
