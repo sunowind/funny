@@ -1,6 +1,7 @@
 name = "funny-site"
 main = "./workers/app.ts"
-compatibility_date = "2025-04-01"
+compatibility_date = "2024-07-01"
+compatibility_flags = ["nodejs_compat_v2"]
 upload_source_maps = true
 
 [observability]
@@ -8,9 +9,7 @@ enabled = true
 
 [[d1_databases]]
 binding = "DB"
-database_id = "62215e58-0a76-45a9-b679-c89a63138be5"
 database_name = "db"
+database_id = "62215e58-0a76-45a9-b679-c89a63138be5"
 
-[assets]
-directory = "./public/"
-binding = "ASSETS" 
+[assets] 
