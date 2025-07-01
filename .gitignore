@@ -20,3 +20,6 @@
 
 .cursor/
 screenshot/
+
+bun.lock
+story/*
