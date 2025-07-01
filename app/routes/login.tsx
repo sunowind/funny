@@ -7,7 +7,10 @@ function LoginPageInner() {
     const { user } = useAuth();
     const navigate = useNavigate();
     useEffect(() => {
-        if (user) navigate('/home', { replace: true });
+        if (user) {
+            console.log('User logged in, redirecting to editor:', user);
+            navigate('/editor', { replace: true });
+        }
     }, [user, navigate]);
     return (
         <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-900">

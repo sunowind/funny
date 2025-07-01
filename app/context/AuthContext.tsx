@@ -30,9 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setHasError(false);
         setErrorMessage(null);
         try {
+            console.log('Attempting login with:', { identifier });
             const res = await loginApi({ identifier, password });
+            console.log('Login successful, user:', res.user);
             setUser(res.user);
         } catch (e: any) {
+            console.error('Login failed:', e);
             setHasError(true);
             setErrorMessage(e.message || '登录失败');
             setUser(null);
