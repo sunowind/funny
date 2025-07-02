@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi, expect } from 'vitest';
 import type { ApiResponse } from '../../workers/types/api';
 import type { User } from '../../workers/types/user';
 
@@ -26,7 +26,8 @@ export const mockUsers = {
 export const testInputs = {
   validLogin: {
     identifier: 'admin',
-    password: 'Admin@123'
+    password: 'Admin@123',
+    rememberMe: false
   },
   validRegistration: {
     username: 'newuser',

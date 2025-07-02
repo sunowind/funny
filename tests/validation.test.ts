@@ -95,7 +95,7 @@ describe('Schema Validation', () => {
       const result = LoginUserSchema.safeParse(testInputs.invalidInputs.emptyIdentifier);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Username or email is required');
+        expect(result.error.errors[0].message).toContain('Identifier is required');
       }
     });
 

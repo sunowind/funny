@@ -26,7 +26,7 @@ function TestAuthComponent() {
             <div data-testid="error">{hasError ? errorMessage : 'No error'}</div>
             <button
                 data-testid="login-btn"
-                onClick={() => login('testuser', 'password123')}
+                onClick={() => login('testuser', 'password123', false)}
             >
                 Login
             </button>
@@ -91,7 +91,8 @@ describe('Authentication Components', () => {
 
             expect(authApi.login).toHaveBeenCalledWith({
                 identifier: 'testuser',
-                password: 'password123'
+                password: 'password123',
+                rememberMe: false
             });
         });
 
@@ -108,7 +109,7 @@ describe('Authentication Components', () => {
             fireEvent.click(screen.getByTestId('login-btn'));
 
             await waitFor(() => {
-                expect(screen.getByTestId('error')).toHaveTextContent(errorMessage);
+                expect(screen.getByTestId('error')).toHaveTextContent('用户名或密码错误，请重试');
                 expect(screen.getByTestId('user-info')).toHaveTextContent('Not logged in');
                 expect(screen.getByTestId('loading')).toHaveTextContent('Ready');
             });
@@ -143,7 +144,9 @@ describe('Authentication Components', () => {
 
             // Then logout
             fireEvent.click(screen.getByTestId('logout-btn'));
-            expect(screen.getByTestId('user-info')).toHaveTextContent('Not logged in');
+            await waitFor(() => {
+                expect(screen.getByTestId('user-info')).toHaveTextContent('Not logged in');
+            });
         });
     });
 
@@ -159,17 +162,17 @@ describe('Authentication Components', () => {
         it('should render login form elements', () => {
             renderLoginForm();
 
-            expect(screen.getByLabelText('用户名或邮箱')).toBeInTheDocument();
-            expect(screen.getByLabelText('密码')).toBeInTheDocument();
+            expect(screen.getByTestId('username-input')).toBeInTheDocument();
+            expect(screen.getByTestId('password-input')).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /登录/ })).toBeInTheDocument();
         });
 
         it('should enable submit button when form is valid', async () => {
             renderLoginForm();
 
-            const identifierInput = screen.getByLabelText('用户名或邮箱');
-            const passwordInput = screen.getByLabelText('密码');
-            const submitButton = screen.getByRole('button', { name: /登录/ });
+            const identifierInput = screen.getByTestId('username-input');
+            const passwordInput = screen.getByTestId('password-input');
+            const submitButton = screen.getByTestId('submit-button');
 
             // Initially disabled
             expect(submitButton).toBeDisabled();
@@ -186,8 +189,8 @@ describe('Authentication Components', () => {
         it('should show/hide password when toggle button is clicked', () => {
             renderLoginForm();
 
-            const passwordInput = screen.getByLabelText('密码') as HTMLInputElement;
-            const toggleButton = screen.getByRole('button', { name: '👁️' });
+            const passwordInput = screen.getByTestId('password-input') as HTMLInputElement;
+            const toggleButton = screen.getByLabelText('显示密码');
 
             // Initially password type
             expect(passwordInput.type).toBe('password');
@@ -215,9 +218,9 @@ describe('Authentication Components', () => {
 
             renderLoginForm();
 
-            const identifierInput = screen.getByLabelText('用户名或邮箱');
-            const passwordInput = screen.getByLabelText('密码');
-            const submitButton = screen.getByRole('button', { name: /登录/ });
+            const identifierInput = screen.getByTestId('username-input');
+            const passwordInput = screen.getByTestId('password-input');
+            const submitButton = screen.getByTestId('submit-button');
 
             // Fill and submit form
             fireEvent.change(identifierInput, { target: { value: 'testuser' } });
@@ -227,7 +230,8 @@ describe('Authentication Components', () => {
             await waitFor(() => {
                 expect(authApi.login).toHaveBeenCalledWith({
                     identifier: 'testuser',
-                    password: 'password123'
+                    password: 'password123',
+                    rememberMe: false
                 });
             });
         });
@@ -238,9 +242,9 @@ describe('Authentication Components', () => {
 
             renderLoginForm();
 
-            const identifierInput = screen.getByLabelText('用户名或邮箱');
-            const passwordInput = screen.getByLabelText('密码');
-            const submitButton = screen.getByRole('button', { name: /登录/ });
+            const identifierInput = screen.getByTestId('username-input');
+            const passwordInput = screen.getByTestId('password-input');
+            const submitButton = screen.getByTestId('submit-button');
 
             // Fill and submit form
             fireEvent.change(identifierInput, { target: { value: 'testuser' } });
@@ -248,7 +252,7 @@ describe('Authentication Components', () => {
             fireEvent.click(submitButton);
 
             await waitFor(() => {
-                expect(screen.getByText(errorMessage)).toBeInTheDocument();
+                expect(screen.getByText('用户名或密码错误，请重试')).toBeInTheDocument();
             });
         });
 
@@ -269,9 +273,9 @@ describe('Authentication Components', () => {
 
             renderLoginForm();
 
-            const identifierInput = screen.getByLabelText('用户名或邮箱');
-            const passwordInput = screen.getByLabelText('密码');
-            const submitButton = screen.getByRole('button', { name: /登录/ });
+            const identifierInput = screen.getByTestId('username-input');
+            const passwordInput = screen.getByTestId('password-input');
+            const submitButton = screen.getByTestId('submit-button');
 
             // Fill form
             fireEvent.change(identifierInput, { target: { value: 'testuser' } });

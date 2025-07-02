@@ -9,6 +9,7 @@ export interface User {
 export interface LoginRequest {
   identifier: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface RegisterRequest {
