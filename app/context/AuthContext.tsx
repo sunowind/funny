@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '../api/auth';
-import { login as loginApi } from '../api/auth';
+import { getCurrentUser, login as loginApi } from '../api/auth';
 
 interface AuthContextProps {
     user: User | null;
@@ -20,9 +20,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [hasError, setHasError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // TODO: 可扩展为从 cookie/session 获取用户信息
     useEffect(() => {
-        // 这里可实现自动登录/校验逻辑
+        setIsLoading(true);
+        getCurrentUser()
+            .then((user) => {
+                setUser(user);
+            })
+            .catch(() => {
+                setUser(null);
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
     }, []);
 
     const login = async (identifier: string, password: string) => {
@@ -44,9 +53,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
         setUser(null);
-        // TODO: 可调用后端登出 API，清理 cookie
+        setIsLoading(true);
+        setHasError(false);
+        setErrorMessage(null);
+        try {
+            await import('../api/auth').then(mod => mod.logout());
+        } catch (e: any) {
+            setHasError(true);
+            setErrorMessage(e.message || '登出失败');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

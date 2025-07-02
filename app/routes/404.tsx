@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import type { LoaderFunction } from "react-router-dom";
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 
@@ -10,4 +11,4 @@ export const NotFoundPage: FC = () => (
             <Link to="/home">返回首页</Link>
         </Button>
     </div>
-); 
+);

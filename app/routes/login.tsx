@@ -1,14 +1,13 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '../components/auth/LoginForm';
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 function LoginPageInner() {
     const { user } = useAuth();
     const navigate = useNavigate();
     useEffect(() => {
         if (user) {
-            console.log('User logged in, redirecting to editor:', user);
             navigate('/editor', { replace: true });
         }
     }, [user, navigate]);
@@ -23,9 +22,5 @@ function LoginPageInner() {
 }
 
 export default function LoginPage() {
-    return (
-        <AuthProvider>
-            <LoginPageInner />
-        </AuthProvider>
-    );
+    return <LoginPageInner />;
 }

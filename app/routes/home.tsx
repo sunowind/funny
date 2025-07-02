@@ -2,23 +2,21 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { Button } from '../components/ui/button';
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 function HomeInner() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // 登录用户自动跳转到编辑器 (US-3.1)
   useEffect(() => {
     if (user) {
-      // 2秒内完成跳转
       const timer = setTimeout(() => {
         navigate('/editor');
-      }, 500); // 0.5秒延迟，让用户看到欢迎信息
+      }, 500);
 
       return () => clearTimeout(timer);
     }
-  }, [user, navigate]);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900">
@@ -63,10 +61,8 @@ function HomeInner() {
 
 export default function HomePage() {
   return (
-    <AuthProvider>
-      <ProtectedRoute>
-        <HomeInner />
-      </ProtectedRoute>
-    </AuthProvider>
+    <ProtectedRoute>
+      <HomeInner />
+    </ProtectedRoute>
   );
 }

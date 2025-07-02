@@ -91,3 +91,15 @@ export async function logout(): Promise<void> {
     throw new Error(result.error || 'Logout failed');
   }
 }
+
+export async function getCurrentUser(): Promise<User | null> {
+  const res = await fetch('/api/auth/me', {
+    method: 'GET',
+    credentials: 'include',
+  });
+  const result: ApiResponse<{ user: User }> = await res.json();
+  if (!res.ok || !result.success || !result.data) {
+    return null;
+  }
+  return result.data.user;
+}

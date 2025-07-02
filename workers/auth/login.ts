@@ -70,4 +70,39 @@ app.post('/login', validate({ json: LoginUserSchema }), async (c) => {
   }
 });
 
+// 新增：获取当前用户信息
+app.get('/me', async (c) => {
+  try {
+    // 从 cookie 读取 token
+    const cookie = c.req.header('Cookie') || '';
+    const tokenMatch = cookie.match(/token=([^;]+)/);
+    if (!tokenMatch) {
+      return c.json({ success: false, error: '未登录', message: 'No token found' }, 401);
+    }
+    const token = tokenMatch[1];
+    // 校验 token
+    const payload = await (await import('../utils/jwt')).verifyToken(token);
+    if (!payload || !payload.userId) {
+      return c.json({ success: false, error: '无效 token', message: 'Invalid token' }, 401);
+    }
+    // 查找用户
+    const prisma = createPrismaClient(c.env.DB);
+    const user = await (await import('../db/user')).findUserById(prisma, payload.userId);
+    if (!user) {
+      return c.json({ success: false, error: '用户不存在', message: 'User not found' }, 404);
+    }
+    // 构造安全用户对象
+    const safeUser = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      createdAt: user.createdAt,
+    };
+    return c.json({ success: true, data: { user: safeUser } });
+  } catch (error) {
+    return c.json({ success: false, error: '服务器错误', message: 'Failed to get user' }, 500);
+  }
+});
+
 export default app;

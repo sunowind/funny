@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { SplitView } from '../components/editor/SplitView';
 import { Button } from '../components/ui/button';
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useMarkdownEditor } from '../hooks/useMarkdownEditor';
 import type { ViewMode } from '../types/editor';
 
@@ -318,10 +318,8 @@ function EditorInner() {
 // 主导出组件
 export default function EditorPage() {
     return (
-        <AuthProvider>
-            <ProtectedRoute>
-                <EditorInner />
-            </ProtectedRoute>
-        </AuthProvider>
+        <ProtectedRoute>
+            <EditorInner />
+        </ProtectedRoute>
     );
 } 
