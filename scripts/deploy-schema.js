@@ -3,10 +3,12 @@
 /**
  * 部署数据库模式到 Cloudflare D1 数据库
  * 这个脚本会生成 SQL 并使用 wrangler 执行到 D1 数据库
+ * 同时会将迁移文件保存到 migrations 目录下，使用递增编号命名
  */
 
 import { execSync } from 'child_process';
 import fs from 'fs';
+import path from 'path';
 
 // 读取配置
 const wranglerToml = fs.readFileSync('wrangler.toml', 'utf8');
@@ -19,47 +21,45 @@ if (!dbName) {
 
 console.log(`🚀 开始部署数据库模式到 Cloudflare D1 数据库: ${dbName}`);
 
+// 确保 migrations 目录存在
+const migrationsDir = path.join(process.cwd(), 'migrations');
+if (!fs.existsSync(migrationsDir)) {
+  fs.mkdirSync(migrationsDir, { recursive: true });
+  console.log('📁 创建 migrations 目录');
+}
+
+// 生成递增编号的迁移文件名
+// 获取命令行参数，如果有提供描述则使用，否则默认为 "schema"
+const args = process.argv.slice(2);
+const description = args.length > 0 ? args[0].replace(/[^a-z0-9_]/gi, '_').toLowerCase() : 'schema';
+
+// 检查 migrations 目录中的文件，获取最大编号
+const files = fs.readdirSync(migrationsDir)
+  .filter(f => f.match(/^\d{3}_.+\.sql$/))
+  .map(f => parseInt(f.split('_')[0], 10));
+const nextNumber = files.length > 0 ? Math.max(...files) + 1 : 1;
+const paddedNumber = String(nextNumber).padStart(3, '0');
+const migrationName = `${paddedNumber}_${description}.sql`;
+const migrationFilePath = path.join(migrationsDir, migrationName);
+
 try {
   // 1. 生成 Prisma Client（确保类型是最新的）
   console.log('📦 生成 Prisma Client...');
   execSync('npx prisma generate', { stdio: 'inherit' });
 
-  // 2. 创建迁移 SQL
+  // 2. 生成迁移 SQL，直接输出到 migrations 目录
   console.log('📝 生成迁移 SQL...');
-  execSync('npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > migration_temp.sql', { stdio: 'inherit' });
-  
-  // 3. 修改 SQL 文件，添加 IF NOT EXISTS
-  console.log('🔧 修改 SQL 以处理表已存在的情况...');
-  const migrationSql = fs.readFileSync('migration_temp.sql', 'utf8')
-    .replace(/CREATE TABLE "([^"]+)"/g, 'CREATE TABLE IF NOT EXISTS "$1"')
-    .replace(/CREATE UNIQUE INDEX "([^"]+)"/g, 'CREATE UNIQUE INDEX IF NOT EXISTS "$1"')
-    .replace(/CREATE INDEX "([^"]+)"/g, 'CREATE INDEX IF NOT EXISTS "$1"');
-  
-  fs.writeFileSync('migration.sql', migrationSql);
-  fs.unlinkSync('migration_temp.sql');
+  execSync(`npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > "${migrationFilePath}"`, { stdio: 'inherit' });
+  console.log(`💾 保存迁移文件到: ${migrationFilePath}`);
 
-  // 4. 执行到 D1 数据库
+  // 3. 执行到 D1 数据库
   console.log('🎯 执行 SQL 到 D1 数据库...');
-  execSync(`npx wrangler d1 execute ${dbName} --file=migration.sql`, { stdio: 'inherit' });
-
-  // 5. 清理临时文件
-  if (fs.existsSync('migration.sql')) {
-    fs.unlinkSync('migration.sql');
-    console.log('🧹 清理临时文件');
-  }
+  execSync(`npx wrangler d1 execute ${dbName} --file="${migrationFilePath}"`, { stdio: 'inherit' });
 
   console.log('✅ 数据库模式部署成功！');
+  console.log(`📋 迁移历史已保存到: ${migrationFilePath}`);
 
 } catch (error) {
   console.error('❌ 部署失败:', error.message);
-  
-  // 清理临时文件
-  if (fs.existsSync('migration_temp.sql')) {
-    fs.unlinkSync('migration_temp.sql');
-  }
-  if (fs.existsSync('migration.sql')) {
-    fs.unlinkSync('migration.sql');
-  }
-  
   process.exit(1);
 } 
