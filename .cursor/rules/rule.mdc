@@ -1,0 +1,248 @@
+---
+alwaysApply: true
+---
+
+You are an expert in TypeScript, Hono, React Router, React, Cloudflare Workers, Prisma, Shadcn UI, Radix UI, Tailwind CSS, and modern web development.
+
+Code Style and Structure
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
+- Structure files: exported component, subcomponents, helpers, static content, types.
+- Separate client and server logic clearly for Cloudflare Workers deployment.
+
+Naming Conventions
+- Use lowercase with dashes for directories (e.g., components/auth-wizard).
+- Favor named exports for components.
+- Use PascalCase for React components and interfaces.
+- Use camelCase for functions and variables.
+
+TypeScript Usage
+- Use TypeScript for all code; prefer interfaces over types.
+- Avoid enums; use maps or const assertions instead.
+- Use functional components with TypeScript interfaces.
+- Leverage Zod for runtime type validation, especially for API boundaries.
+
+React Router Conventions
+- Use React Router v7 with file-based routing patterns.
+- Implement proper data loading with loaders and actions.
+- Use proper error boundaries and loading states.
+- Leverage React Router's built-in data fetching capabilities.
+
+Hono Backend Development
+- Structure API routes using Hono's declarative routing.
+- Use Hono's built-in middleware for common tasks.
+- Implement proper request/response validation with Zod.
+- Follow RESTful API design principles.
+- Use proper HTTP status codes and error handling.
+
+Cloudflare Workers Integration
+- Optimize for Cloudflare Workers runtime limitations.
+- Use environment variables for configuration.
+- Implement proper edge-side caching strategies.
+- Consider cold start performance in API design.
+
+Database and Prisma
+- Use Prisma with D1 adapter for Cloudflare Workers.
+- Define clear database schemas with proper relationships.
+- Use Prisma's type-safe query methods.
+- Implement proper database migrations and deployments.
+
+State Management
+- Use Zustand for client-side state management.
+- Keep state minimal and close to where it's used.
+- Prefer server state over client state when possible.
+- Use React Router's built-in state management for routing state.
+
+UI and Styling
+- Use Shadcn UI, Radix, and Tailwind for components and styling.
+- Implement responsive design with Tailwind CSS; use a mobile-first approach.
+- Follow Shadcn UI component patterns and customization guidelines.
+- Use CSS variables for theme consistency.
+
+Monaco Editor Integration
+- Use @monaco-editor/react for code editing features.
+- Implement proper TypeScript language support.
+- Configure appropriate editor options for the use case.
+- Handle editor state and changes properly.
+
+Performance Optimization
+- Minimize bundle size for Cloudflare Workers.
+- Use dynamic imports for code splitting.
+- Implement proper loading states and error boundaries.
+- Optimize images: use WebP format, include size data, implement lazy loading.
+- Leverage React 19's concurrent features.
+
+Security and Validation
+- Validate all inputs using Zod schemas.
+- Implement proper authentication and authorization.
+- Use bcrypt-ts for password hashing.
+- Sanitize user inputs with DOMPurify when rendering HTML.
+- Follow Cloudflare Workers security best practices.
+
+Key Conventions
+- Use React Router loaders for data fetching.
+- Implement proper error handling at route and component levels.
+- Use Prisma for all database operations.
+- Leverage Cloudflare Workers bindings for environment variables.
+- Follow the principle of least privilege for API access.
+
+Testing Strategy
+Structure tests across four key dimensions:
+
+API Testing
+- Save test in api.test.ts
+
+Component Testing
+- Save test in components.test.tsx
+
+Database Testing
+- Save test in database.test.ts
+
+
+Validation Testing
+- Save validation.test.ts
+
+Development Workflow
+- Use Vite for fast development builds.
+- Use Wrangler for local Cloudflare Workers development.
+- Implement proper CI/CD with database migrations.
+- Use TypeScript strict mode for better type safety.
+
+Follow React Router docs for routing, data loading, and error handling.
+Follow Hono docs for API development and middleware usage.
+Follow Cloudflare Workers docs for deployment and runtime considerations. You are an expert in TypeScript, Hono, React Router, React, Cloudflare Workers, Prisma, Shadcn UI, Radix UI, Tailwind CSS, and modern web development.
+
+Code Style and Structure
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
+- Structure files: exported component, subcomponents, helpers, static content, types.
+- Separate client and server logic clearly for Cloudflare Workers deployment.
+
+Naming Conventions
+- Use lowercase with dashes for directories (e.g., components/auth-wizard).
+- Favor named exports for components.
+- Use PascalCase for React components and interfaces.
+- Use camelCase for functions and variables.
+
+TypeScript Usage
+- Use TypeScript for all code; prefer interfaces over types.
+- Avoid enums; use maps or const assertions instead.
+- Use functional components with TypeScript interfaces.
+- Leverage Zod for runtime type validation, especially for API boundaries.
+
+React Router Conventions
+- Use React Router v7 with file-based routing patterns.
+- Implement proper data loading with loaders and actions.
+- Use proper error boundaries and loading states.
+- Leverage React Router's built-in data fetching capabilities.
+
+Hono Backend Development
+- Structure API routes using Hono's declarative routing.
+- Use Hono's built-in middleware for common tasks.
+- Implement proper request/response validation with Zod.
+- Follow RESTful API design principles.
+- Use proper HTTP status codes and error handling.
+
+Cloudflare Workers Integration
+- Optimize for Cloudflare Workers runtime limitations.
+- Use environment variables for configuration.
+- Implement proper edge-side caching strategies.
+- Consider cold start performance in API design.
+
+Database and Prisma
+- Use Prisma with D1 adapter for Cloudflare Workers.
+- Define clear database schemas with proper relationships.
+- Use Prisma's type-safe query methods.
+- Implement proper database migrations and deployments.
+
+State Management
+- Use Zustand for client-side state management.
+- Keep state minimal and close to where it's used.
+- Prefer server state over client state when possible.
+- Use React Router's built-in state management for routing state.
+
+UI and Styling
+- Use Shadcn UI, Radix, and Tailwind for components and styling.
+- Implement responsive design with Tailwind CSS; use a mobile-first approach.
+- Follow Shadcn UI component patterns and customization guidelines.
+- Use CSS variables for theme consistency.
+
+Monaco Editor Integration
+- Use @monaco-editor/react for code editing features.
+- Implement proper TypeScript language support.
+- Configure appropriate editor options for the use case.
+- Handle editor state and changes properly.
+
+Performance Optimization
+- Minimize bundle size for Cloudflare Workers.
+- Use dynamic imports for code splitting.
+- Implement proper loading states and error boundaries.
+- Optimize images: use WebP format, include size data, implement lazy loading.
+- Leverage React 19's concurrent features.
+
+Security and Validation
+- Validate all inputs using Zod schemas.
+- Implement proper authentication and authorization.
+- Use bcrypt-ts for password hashing.
+- Sanitize user inputs with DOMPurify when rendering HTML.
+- Follow Cloudflare Workers security best practices.
+
+Key Conventions
+- Use React Router loaders for data fetching.
+- Implement proper error handling at route and component levels.
+- Use Prisma for all database operations.
+- Leverage Cloudflare Workers bindings for environment variables.
+- Follow the principle of least privilege for API access.
+
+Testing Strategy
+Structure tests across four key dimensions:
+
+API Testing
+- Use Vitest for testing Hono API routes and endpoints.
+- Test all HTTP methods (GET, POST, PUT, DELETE) with proper status codes.
+- Validate request/response schemas using Zod.
+- Mock Cloudflare Workers environment and bindings.
+- Test authentication and authorization flows.
+- Verify error handling and edge cases.
+- Use supertest-like approach for integration testing.
+
+Component Testing
+- Use Testing Library for React component testing.
+- Test user interactions and event handling.
+- Verify component rendering with different props and states.
+- Test accessibility features and ARIA attributes.
+- Mock external dependencies and API calls.
+- Test responsive behavior and mobile interactions.
+- Verify integration with React Router navigation.
+
+Database Testing
+- Test Prisma schema definitions and relationships.
+- Use test database instances for integration tests.
+- Verify CRUD operations and data integrity.
+- Test database migrations and schema changes.
+- Mock Prisma client for unit tests when appropriate.
+- Test transaction handling and rollback scenarios.
+- Verify D1 adapter compatibility and performance.
+
+Validation Testing
+- Test all Zod schemas for input validation.
+- Verify error messages and validation rules.
+- Test edge cases and boundary conditions.
+- Ensure client-server validation consistency.
+- Test sanitization with DOMPurify for user inputs.
+- Verify type safety between frontend and backend.
+- Test form validation and user feedback.
+
+Development Workflow
+- Use Vite for fast development builds.
+- Use Wrangler for local Cloudflare Workers development.
+- Implement proper CI/CD with database migrations.
+- Use TypeScript strict mode for better type safety.
+
+Follow React Router docs for routing, data loading, and error handling.
+Follow Hono docs for API development and middleware usage.
+Follow Cloudflare Workers docs for deployment and runtime considerations. 

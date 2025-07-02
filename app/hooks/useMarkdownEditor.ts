@@ -161,6 +161,66 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
     insertText(`${prefix} Heading`);
   }, [insertText]);
 
+  // 插入列表
+  const insertList = useCallback((type: 'unordered' | 'ordered') => {
+    const marker = type === 'unordered' ? '- ' : '1. ';
+    insertText(`${marker}列表项\n${marker}列表项\n${marker}列表项`);
+  }, [insertText]);
+
+  // 插入表格
+  const insertTable = useCallback(() => {
+    const tableTemplate = `| 标题1 | 标题2 | 标题3 |
+|-------|-------|-------|
+| 内容1 | 内容2 | 内容3 |
+| 内容4 | 内容5 | 内容6 |`;
+    insertText(tableTemplate);
+  }, [insertText]);
+
+  // 插入代码块
+  const insertCodeBlock = useCallback((language: string = 'javascript') => {
+    const codeBlockTemplate = `\`\`\`${language}\n// 你的代码\nconsole.log("Hello, World!");\n\`\`\``;
+    insertText(codeBlockTemplate);
+  }, [insertText]);
+
+  // 插入分隔线
+  const insertHorizontalRule = useCallback(() => {
+    insertText('\n---\n');
+  }, [insertText]);
+
+  // 插入引用
+  const insertBlockquote = useCallback(() => {
+    insertText('> 这是一个引用文本');
+  }, [insertText]);
+
+  // 格式化选中文本或当前行
+  const toggleFormat = useCallback((format: 'bold' | 'italic' | 'strikethrough' | 'code') => {
+    const { content, cursorPosition } = editorState;
+    const lines = content.split('\n');
+    const currentLine = lines[cursorPosition.line - 1] || '';
+    
+    const formatMap = {
+      bold: '**',
+      italic: '*',
+      strikethrough: '~~',
+      code: '`',
+    };
+
+    const marker = formatMap[format];
+    
+    // 检查当前行是否已经有该格式
+    const hasFormat = currentLine.includes(marker);
+    
+    if (hasFormat) {
+      // 移除格式
+      const newLine = currentLine.replace(new RegExp(`\\${marker}(.*?)\\${marker}`, 'g'), '$1');
+      lines[cursorPosition.line - 1] = newLine;
+      updateContent(lines.join('\n'));
+    } else {
+      // 添加格式
+      insertText(`${marker}text${marker}`);
+    }
+  }, [editorState, insertText, updateContent]);
+
   // 获取渲染后的HTML
   const getRenderedHtml = useCallback(() => {
     return parseMarkdown(editorState.content);
@@ -196,9 +256,15 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
     // 格式化操作
     insertText,
     formatText,
+    toggleFormat,
     insertLink,
     insertImage,
     insertHeading,
+    insertList,
+    insertTable,
+    insertCodeBlock,
+    insertHorizontalRule,
+    insertBlockquote,
     
     // 工具函数
     getRenderedHtml,

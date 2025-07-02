@@ -1,48 +1,11 @@
 import { useCallback, useState } from 'react';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { SplitView } from '../components/editor/SplitView';
+import { EditorToolbar } from '../components/editor/EditorToolbar';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import { useMarkdownEditor } from '../hooks/useMarkdownEditor';
 import type { ViewMode } from '../types/editor';
-
-// 视图模式切换按钮组件
-function ViewModeToggle({
-    viewMode,
-    onViewModeChange
-}: {
-    viewMode: ViewMode;
-    onViewModeChange: (mode: ViewMode) => void;
-}) {
-    return (
-        <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-            <Button
-                variant={viewMode === 'edit' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onViewModeChange('edit')}
-                className="px-3 py-1"
-            >
-                编辑
-            </Button>
-            <Button
-                variant={viewMode === 'split' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onViewModeChange('split')}
-                className="px-3 py-1"
-            >
-                分屏
-            </Button>
-            <Button
-                variant={viewMode === 'preview' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onViewModeChange('preview')}
-                className="px-3 py-1"
-            >
-                预览
-            </Button>
-        </div>
-    );
-}
 
 // 状态栏组件
 function StatusBar({
@@ -90,96 +53,6 @@ function StatusBar({
     );
 }
 
-// 工具栏组件
-function Toolbar({
-    onSave,
-    onFormatText,
-    onInsertLink,
-    onInsertImage,
-    onInsertHeading,
-    viewMode,
-    onViewModeChange,
-}: {
-    onSave: () => void;
-    onFormatText: (format: 'bold' | 'italic' | 'strikethrough' | 'code') => void;
-    onInsertLink: () => void;
-    onInsertImage: () => void;
-    onInsertHeading: (level: number) => void;
-    viewMode: ViewMode;
-    onViewModeChange: (mode: ViewMode) => void;
-}) {
-    return (
-        <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-2">
-                <Button onClick={onSave} size="sm">
-                    保存
-                </Button>
-
-                <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
-
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onFormatText('bold')}
-                    title="粗体 (Ctrl+B)"
-                >
-                    <strong>B</strong>
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onFormatText('italic')}
-                    title="斜体 (Ctrl+I)"
-                >
-                    <em>I</em>
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onFormatText('code')}
-                    title="代码 (Ctrl+`)"
-                >
-                    &lt;/&gt;
-                </Button>
-
-                <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
-
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onInsertHeading(1)}
-                    title="标题"
-                >
-                    H1
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onInsertLink}
-                    title="链接 (Ctrl+K)"
-                >
-                    🔗
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onInsertImage}
-                    title="图片"
-                >
-                    🖼️
-                </Button>
-            </div>
-
-            <div className="flex items-center space-x-4">
-                <ViewModeToggle
-                    viewMode={viewMode}
-                    onViewModeChange={onViewModeChange}
-                />
-            </div>
-        </div>
-    );
-}
-
 // 编辑器主组件
 function EditorInner() {
     console.log('Editor page loading...');
@@ -208,6 +81,9 @@ function EditorInner() {
         insertLink,
         insertImage,
         insertHeading,
+        insertList,
+        insertTable,
+        insertCodeBlock,
         getDocumentStats,
     } = useMarkdownEditor({
         initialContent: `# 欢迎使用 Markdown 编辑器
@@ -281,12 +157,16 @@ function EditorInner() {
             </div>
 
             {/* 工具栏 */}
-            <Toolbar
+            <EditorToolbar
                 onSave={() => manualSave()}
+                isSaving={editorState.isLoading}
                 onFormatText={formatText}
                 onInsertLink={insertLink}
                 onInsertImage={insertImage}
                 onInsertHeading={insertHeading}
+                onInsertList={insertList}
+                onInsertTable={insertTable}
+                onInsertCodeBlock={insertCodeBlock}
                 viewMode={editorState.viewMode}
                 onViewModeChange={setViewMode}
             />

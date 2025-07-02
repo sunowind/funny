@@ -15,6 +15,92 @@ import {
 } from './helpers/test-utils';
 import { createTestLoginRoute, createTestRegisterRoute } from './mocks/auth-routes';
 
+// Mock document operations
+const mockDocumentOperations = {
+    createDocument: vi.fn(),
+    getDocument: vi.fn(),
+    updateDocument: vi.fn(),
+    deleteDocument: vi.fn(),
+    getUserDocuments: vi.fn(),
+};
+
+// Mock document route
+function createTestDocumentRoute(mockPrisma: any) {
+    const app = new Hono();
+    
+    // Create document
+    app.post('/documents', async (c) => {
+        try {
+            const body = await c.req.json();
+            const { title, content } = body;
+            
+            if (!title || !content) {
+                return c.json({ error: 'Title and content are required' }, 400);
+            }
+            
+            const document = await mockDocumentOperations.createDocument({
+                title,
+                content,
+                authorId: 'mock-user-id'
+            });
+            
+            return c.json({ success: true, data: document });
+        } catch (error) {
+            return c.json({ error: 'Internal server error' }, 500);
+        }
+    });
+    
+    // Get document
+    app.get('/documents/:id', async (c) => {
+        try {
+            const id = c.req.param('id');
+            const document = await mockDocumentOperations.getDocument(id);
+            
+            if (!document) {
+                return c.json({ error: 'Document not found' }, 404);
+            }
+            
+            return c.json({ success: true, data: document });
+        } catch (error) {
+            return c.json({ error: 'Internal server error' }, 500);
+        }
+    });
+    
+    // Update document
+    app.put('/documents/:id', async (c) => {
+        try {
+            const id = c.req.param('id');
+            const body = await c.req.json();
+            const { title, content } = body;
+            
+            const document = await mockDocumentOperations.updateDocument(id, {
+                title,
+                content
+            });
+            
+            if (!document) {
+                return c.json({ error: 'Document not found' }, 404);
+            }
+            
+            return c.json({ success: true, data: document });
+        } catch (error) {
+            return c.json({ error: 'Internal server error' }, 500);
+        }
+    });
+    
+    // Get user documents
+    app.get('/documents', async (c) => {
+        try {
+            const documents = await mockDocumentOperations.getUserDocuments('mock-user-id');
+            return c.json({ success: true, data: documents });
+        } catch (error) {
+            return c.json({ error: 'Internal server error' }, 500);
+        }
+    });
+    
+    return app;
+}
+
 describe('Authentication API', () => {
   let app: Hono;
   let mockPrisma: any;
@@ -336,6 +422,206 @@ describe('Authentication API', () => {
         expect(res.status).toBe(500);
         expectErrorResponse(data, 'Internal server error');
       });
+    });
+  });
+});
+
+describe('Document API', () => {
+  let app: Hono;
+  let mockPrisma: any;
+
+  const mockDocument = {
+    id: 'doc-123',
+    title: '测试文档',
+    content: '# 标题\n\n这是一个测试文档。',
+    authorId: 'mock-user-id',
+    createdAt: new Date('2024-01-01T00:00:00Z'),
+    updatedAt: new Date('2024-01-01T00:00:00Z'),
+  };
+
+  const mockDocuments = [
+    mockDocument,
+    {
+      id: 'doc-456',
+      title: '另一个文档',
+      content: '## 子标题\n\n更多内容。',
+      authorId: 'mock-user-id',
+      createdAt: new Date('2024-01-02T00:00:00Z'),
+      updatedAt: new Date('2024-01-02T00:00:00Z'),
+    }
+  ];
+
+  beforeEach(() => {
+    setupTestEnvironment();
+    vi.clearAllMocks();
+    
+    mockPrisma = createMockPrisma();
+    app = new Hono();
+    app.route('/api', createTestDocumentRoute(mockPrisma));
+  });
+
+  describe('Create Document', () => {
+    it('should create document successfully', async () => {
+      mockDocumentOperations.createDocument.mockResolvedValue(mockDocument);
+
+      const req = createTestRequest('http://localhost/api/documents', 'POST', {
+        title: '测试文档',
+        content: '# 标题\n\n这是一个测试文档。'
+      });
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expectSuccessResponse(data);
+      expect(data.data.title).toBe('测试文档');
+      expect(mockDocumentOperations.createDocument).toHaveBeenCalledWith({
+        title: '测试文档',
+        content: '# 标题\n\n这是一个测试文档。',
+        authorId: 'mock-user-id'
+      });
+    });
+
+    it('should reject empty title', async () => {
+      const req = createTestRequest('http://localhost/api/documents', 'POST', {
+        title: '',
+        content: '内容'
+      });
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(400);
+      expectErrorResponse(data, 'Title and content are required');
+    });
+
+    it('should reject empty content', async () => {
+      const req = createTestRequest('http://localhost/api/documents', 'POST', {
+        title: '标题',
+        content: ''
+      });
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(400);
+      expectErrorResponse(data, 'Title and content are required');
+    });
+
+    it('should handle database errors', async () => {
+      mockDocumentOperations.createDocument.mockRejectedValue(new Error('Database error'));
+
+      const req = createTestRequest('http://localhost/api/documents', 'POST', {
+        title: '测试文档',
+        content: '内容'
+      });
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(500);
+      expectErrorResponse(data, 'Internal server error');
+    });
+  });
+
+  describe('Get Document', () => {
+    it('should get document successfully', async () => {
+      mockDocumentOperations.getDocument.mockResolvedValue(mockDocument);
+
+      const req = createTestRequest('http://localhost/api/documents/doc-123', 'GET');
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expectSuccessResponse(data);
+      expect(data.data.id).toBe('doc-123');
+      expect(mockDocumentOperations.getDocument).toHaveBeenCalledWith('doc-123');
+    });
+
+    it('should return 404 for non-existent document', async () => {
+      mockDocumentOperations.getDocument.mockResolvedValue(null);
+
+      const req = createTestRequest('http://localhost/api/documents/nonexistent', 'GET');
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(404);
+      expectErrorResponse(data, 'Document not found');
+    });
+  });
+
+  describe('Update Document', () => {
+    it('should update document successfully', async () => {
+      const updatedDocument = {
+        ...mockDocument,
+        title: '更新的标题',
+        content: '更新的内容',
+        updatedAt: new Date('2024-01-03T00:00:00Z'),
+      };
+      
+      mockDocumentOperations.updateDocument.mockResolvedValue(updatedDocument);
+
+      const req = createTestRequest('http://localhost/api/documents/doc-123', 'PUT', {
+        title: '更新的标题',
+        content: '更新的内容'
+      });
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expectSuccessResponse(data);
+      expect(data.data.title).toBe('更新的标题');
+      expect(mockDocumentOperations.updateDocument).toHaveBeenCalledWith('doc-123', {
+        title: '更新的标题',
+        content: '更新的内容'
+      });
+    });
+
+    it('should return 404 for non-existent document', async () => {
+      mockDocumentOperations.updateDocument.mockResolvedValue(null);
+
+      const req = createTestRequest('http://localhost/api/documents/nonexistent', 'PUT', {
+        title: '更新的标题',
+        content: '更新的内容'
+      });
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(404);
+      expectErrorResponse(data, 'Document not found');
+    });
+  });
+
+  describe('Get User Documents', () => {
+    it('should get user documents successfully', async () => {
+      mockDocumentOperations.getUserDocuments.mockResolvedValue(mockDocuments);
+
+      const req = createTestRequest('http://localhost/api/documents', 'GET');
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expectSuccessResponse(data);
+      expect(data.data).toHaveLength(2);
+      expect(mockDocumentOperations.getUserDocuments).toHaveBeenCalledWith('mock-user-id');
+    });
+
+    it('should handle empty document list', async () => {
+      mockDocumentOperations.getUserDocuments.mockResolvedValue([]);
+
+      const req = createTestRequest('http://localhost/api/documents', 'GET');
+
+      const res = await app.request(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expectSuccessResponse(data);
+      expect(data.data).toHaveLength(0);
     });
   });
 }); 

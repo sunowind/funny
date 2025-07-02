@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle, useMemo, useCallback } from 'react';
 import { parseMarkdown } from '../../lib/markdown/parser';
 import type { PreviewOptions } from '../../types/editor';
 
@@ -6,10 +6,40 @@ interface PreviewPaneProps {
     content: string;
     options?: Partial<PreviewOptions>;
     className?: string;
+    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
-export function PreviewPane({ content, options = {}, className = '' }: PreviewPaneProps) {
+// 缓存外部库引用
+let katexPromise: Promise<typeof import('katex')> | null = null;
+let mermaidPromise: Promise<typeof import('mermaid')> | null = null;
+let isMermaidInitialized = false;
+
+const getKatex = () => {
+    if (!katexPromise) {
+        katexPromise = import('katex');
+    }
+    return katexPromise;
+};
+
+const getMermaid = () => {
+    if (!mermaidPromise) {
+        mermaidPromise = import('mermaid');
+    }
+    return mermaidPromise;
+};
+
+export const PreviewPane = forwardRef<HTMLDivElement, PreviewPaneProps>(({ 
+    content, 
+    options = {}, 
+    className = '',
+    onScroll 
+}, ref) => {
     const previewRef = useRef<HTMLDivElement>(null);
+    const lastRenderedContentRef = useRef<string>('');
+    const isRenderingRef = useRef<boolean>(false);
+
+    // 暴露ref给父组件
+    useImperativeHandle(ref, () => previewRef.current as HTMLDivElement);
 
     const defaultOptions: PreviewOptions = {
         enableMath: true,
@@ -18,41 +48,36 @@ export function PreviewPane({ content, options = {}, className = '' }: PreviewPa
         sanitizeHtml: true,
     };
 
-    const finalOptions = { ...defaultOptions, ...options };
+    const finalOptions = useMemo(() => ({ ...defaultOptions, ...options }), [options]);
 
-    // 渲染 Markdown 内容
-    const renderMarkdown = () => {
-        if (!previewRef.current) return;
-
-        const html = parseMarkdown(content, {
+    // 使用useMemo缓存HTML渲染结果
+    const renderedHtml = useMemo(() => {
+        if (content === lastRenderedContentRef.current) {
+            return null; // 内容未变化，跳过重新渲染
+        }
+        
+        return parseMarkdown(content, {
             enableMath: finalOptions.enableMath,
             enableMermaid: finalOptions.enableMermaid,
             sanitize: finalOptions.sanitizeHtml,
         });
-
-        previewRef.current.innerHTML = html;
-
-        // 渲染数学公式
-        if (finalOptions.enableMath) {
-            renderMathFormulas();
-        }
-
-        // 渲染 Mermaid 图表
-        if (finalOptions.enableMermaid) {
-            renderMermaidDiagrams();
-        }
-    };
+    }, [content, finalOptions]);
 
     // 渲染数学公式
-    const renderMathFormulas = async () => {
-        if (!previewRef.current) return;
+    const renderMathFormulas = useCallback(async () => {
+        if (!previewRef.current || !finalOptions.enableMath) return;
 
         try {
-            // 动态导入 KaTeX
-            const katex = await import('katex');
+            const katex = await getKatex();
+
+            // 使用DocumentFragment提升性能
+            const fragment = document.createDocumentFragment();
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = previewRef.current.innerHTML;
+            fragment.appendChild(tempContainer);
 
             // 渲染行内公式
-            const inlineMath = previewRef.current.querySelectorAll('.math-inline');
+            const inlineMath = tempContainer.querySelectorAll('.math-inline');
             inlineMath.forEach((element) => {
                 const latex = element.getAttribute('data-latex');
                 if (latex) {
@@ -69,7 +94,7 @@ export function PreviewPane({ content, options = {}, className = '' }: PreviewPa
             });
 
             // 渲染块级公式
-            const blockMath = previewRef.current.querySelectorAll('.math-block');
+            const blockMath = tempContainer.querySelectorAll('.math-block');
             blockMath.forEach((element) => {
                 const latex = element.getAttribute('data-latex');
                 if (latex) {
@@ -84,49 +109,82 @@ export function PreviewPane({ content, options = {}, className = '' }: PreviewPa
                     }
                 }
             });
+
+            // 更新DOM
+            previewRef.current.innerHTML = tempContainer.innerHTML;
         } catch (error) {
             console.warn('Failed to load KaTeX:', error);
         }
-    };
+    }, [finalOptions.enableMath]);
 
     // 渲染 Mermaid 图表
-    const renderMermaidDiagrams = async () => {
-        if (!previewRef.current) return;
+    const renderMermaidDiagrams = useCallback(async () => {
+        if (!previewRef.current || !finalOptions.enableMermaid) return;
 
         try {
-            // 动态导入 Mermaid
-            const mermaid = await import('mermaid');
+            const mermaid = await getMermaid();
 
-            // 初始化 Mermaid
-            mermaid.default.initialize({
-                startOnLoad: false,
-                theme: 'default',
-                securityLevel: 'loose',
-            });
+            // 初始化 Mermaid（仅一次）
+            if (!isMermaidInitialized) {
+                mermaid.default.initialize({
+                    startOnLoad: false,
+                    theme: 'default',
+                    securityLevel: 'loose',
+                });
+                isMermaidInitialized = true;
+            }
 
             const diagrams = previewRef.current.querySelectorAll('.mermaid-diagram');
 
-            diagrams.forEach(async (element, index) => {
-                const diagramText = element.getAttribute('data-mermaid');
-                if (diagramText) {
-                    try {
-                        const { svg } = await mermaid.default.render(`mermaid-${index}`, diagramText);
-                        element.innerHTML = svg;
-                    } catch (error) {
-                        console.warn('Mermaid render error:', error);
-                        element.innerHTML = `<pre>${diagramText}</pre>`;
+            // 并行处理所有图表
+            await Promise.all(
+                Array.from(diagrams).map(async (element, index) => {
+                    const diagramText = element.getAttribute('data-mermaid');
+                    if (diagramText) {
+                        try {
+                            const { svg } = await mermaid.default.render(`mermaid-${Date.now()}-${index}`, diagramText);
+                            element.innerHTML = svg;
+                        } catch (error) {
+                            console.warn('Mermaid render error:', error);
+                            element.innerHTML = `<pre>${diagramText}</pre>`;
+                        }
                     }
-                }
-            });
+                })
+            );
         } catch (error) {
             console.warn('Failed to load Mermaid:', error);
         }
-    };
+    }, [finalOptions.enableMermaid]);
+
+    // 主渲染函数
+    const renderMarkdown = useCallback(async () => {
+        if (!previewRef.current || isRenderingRef.current || !renderedHtml || content === lastRenderedContentRef.current) {
+            return;
+        }
+
+        isRenderingRef.current = true;
+        lastRenderedContentRef.current = content;
+
+        try {
+            // 设置基础HTML
+            previewRef.current.innerHTML = renderedHtml;
+
+            // 并行渲染数学公式和图表
+            await Promise.all([
+                renderMathFormulas(),
+                renderMermaidDiagrams(),
+            ]);
+        } catch (error) {
+            console.error('Error rendering markdown:', error);
+        } finally {
+            isRenderingRef.current = false;
+        }
+    }, [content, renderedHtml, renderMathFormulas, renderMermaidDiagrams]);
 
     // 当内容或选项变化时重新渲染
     useEffect(() => {
         renderMarkdown();
-    }, [content, finalOptions]);
+    }, [renderMarkdown]);
 
     // 添加点击链接处理
     useEffect(() => {
@@ -151,15 +209,19 @@ export function PreviewPane({ content, options = {}, className = '' }: PreviewPa
             }
         };
 
-        previewRef.current.addEventListener('click', handleLinkClick);
+        const currentRef = previewRef.current;
+        currentRef.addEventListener('click', handleLinkClick);
 
         return () => {
-            previewRef.current?.removeEventListener('click', handleLinkClick);
+            currentRef?.removeEventListener('click', handleLinkClick);
         };
     }, []);
 
     return (
-        <div className={`preview-pane h-full overflow-auto bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 ${className}`}>
+        <div 
+            className={`preview-pane h-full overflow-auto bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 ${className}`}
+            onScroll={onScroll}
+        >
             <div
                 ref={previewRef}
                 className="markdown-content p-6"
@@ -171,13 +233,15 @@ export function PreviewPane({ content, options = {}, className = '' }: PreviewPa
                 }}
             />
 
-            {/* 加载 KaTeX CSS */}
-            <link
-                rel="stylesheet"
-                href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"
-                integrity="sha384-GvrOXuhMATgEsSwCs4smul74iXGOixntILdUW9XmUC6+HX0sLNAK3q71HotJqlAn"
-                crossOrigin="anonymous"
-            />
+            {/* KaTeX CSS - 只加载一次 */}
+            {finalOptions.enableMath && (
+                <link
+                    rel="stylesheet"
+                    href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"
+                    integrity="sha384-GvrOXuhMATgEsSwCs4smul74iXGOixntILdUW9XmUC6+HX0sLNAK3q71HotJqlAn"
+                    crossOrigin="anonymous"
+                />
+            )}
 
             <style>{`
                 .markdown-content h1, .markdown-content h2, .markdown-content h3,
@@ -372,4 +436,6 @@ export function PreviewPane({ content, options = {}, className = '' }: PreviewPa
             `}</style>
         </div>
     );
-} 
+});
+
+PreviewPane.displayName = 'PreviewPane'; 
