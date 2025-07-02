@@ -14,11 +14,8 @@ const renderer = new marked.Renderer();
 renderer.heading = (token) => {
   const text = token.text;
   const level = token.depth;
-  const id = text.toLowerCase().replace(/[^\w]+/g, '-');
-  return `<h${level} id="${id}">
-    <a class="anchor" href="#${id}" aria-hidden="true">#</a>
-    ${text}
-  </h${level}>`;
+  const id = text.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-'); // 支持中文字符
+  return `<h${level} id="${id}">${text}</h${level}>`;
 };
 
 // 自定义代码块渲染
@@ -42,6 +39,9 @@ renderer.table = (token) => {
     </table>
   </div>`;
 };
+
+// 注意：我们不自定义 list 渲染器，让 marked 使用默认的列表处理
+// 这样可以确保普通列表正常工作，只对任务列表进行特殊处理
 
 // 自定义任务列表渲染
 renderer.listitem = (token) => {

@@ -38,7 +38,7 @@ export function MarkdownEditor({
             minimap: { enabled: config.minimap },
             automaticLayout: true,
             scrollBeyondLastLine: false,
-            theme: config.theme === 'dark' ? 'vs-dark' : 'vs',
+            theme: 'vs',
 
             // 编辑增强
             suggest: {
@@ -169,7 +169,7 @@ export function MarkdownEditor({
                 lineNumbers: config.lineNumbers ? 'on' : 'off',
                 wordWrap: config.wordWrap ? 'on' : 'off',
                 minimap: { enabled: config.minimap },
-                theme: config.theme === 'dark' ? 'vs-dark' : 'vs',
+                theme: 'vs',
             });
         }
     }, [config]);
@@ -198,27 +198,42 @@ export function MarkdownEditor({
     };
 
     return (
-        <div className={`markdown-editor ${className}`}>
+        <div className={`markdown-editor bg-white dark:bg-gray-900 ${className}`}>
             <Editor
                 value={value}
+                language="markdown"
                 onChange={(newValue) => onChange(newValue || '')}
                 onMount={handleEditorDidMount}
-                language="markdown"
                 options={{
                     automaticLayout: true,
-                    scrollBeyondLastLine: false,
                     wordWrap: 'on',
-                    minimap: { enabled: false },
                     lineNumbers: 'on',
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
                     fontSize: 14,
-                    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                    fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
                     theme: 'vs',
+                    suggest: {
+                        showWords: false,
+                        showSnippets: true,
+                    },
+                    contextmenu: true,
+                    find: {
+                        addExtraSpaceOnTop: false,
+                        autoFindInSelection: 'never',
+                        seedSearchStringFromSelection: 'always',
+                    },
+                    smoothScrolling: true,
+                    mouseWheelScrollSensitivity: 1,
+                    scrollbar: {
+                        vertical: 'auto',
+                        horizontal: 'auto',
+                        verticalScrollbarSize: 8,
+                        horizontalScrollbarSize: 8,
+                    },
                 }}
-                loading={
-                    <div className="flex items-center justify-center h-full">
-                        <div className="text-gray-500">Loading editor...</div>
-                    </div>
-                }
+                height="100%"
+                width="100%"
             />
         </div>
     );
