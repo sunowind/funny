@@ -12,12 +12,16 @@ const app = new Hono<{ Bindings: { DB: D1Database } }>();
 app.post('/login', validate({ json: LoginUserSchema }), async (c) => {
   try {
     const { identifier, password } = getValidatedData<LoginUserInput>(c);
+    console.log('Login attempt for identifier:', identifier);
     
     // 创建 Prisma 客户端（使用 D1 适配器）
     const prisma = createPrismaClient(c.env.DB);
+    console.log('Prisma client created, using D1:', !!c.env.DB);
     
     // 查找用户
     const user = await findUserByIdentifier(prisma, identifier);
+    console.log('User found:', user ? `${user.username} (${user.email})` : 'Not found');
+    
     if (!user) {
       return c.json<ApiResponse<never>>({
         success: false,
@@ -27,7 +31,10 @@ app.post('/login', validate({ json: LoginUserSchema }), async (c) => {
     }
 
     // 验证密码
+    console.log('Stored hash:', user.passwordHash);
     const isPasswordValid = await verifyPassword(password, user.passwordHash);
+    console.log('Password verification result:', isPasswordValid);
+    
     if (!isPasswordValid) {
       return c.json<ApiResponse<never>>({
         success: false,

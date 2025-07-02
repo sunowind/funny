@@ -7,11 +7,14 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- 删除现有的用户（如果存在）
+DELETE FROM users WHERE username = 'admin';
+
 INSERT INTO users (id, username, email, password_hash, avatar, created_at) VALUES (
   '1',
   'admin',
-  'Admin@123',
-  '$2b$10$gBkVVjmYv5.cV8srfcqRY.OViU2G9RKPWFUD4BREcid1duw06PIKC',
+  'admin@example.com',
+  '$2b$10$vhg5F0Q1jlQJ4b4V1Dzfce9YVUpQNtQf6vjSScmnrJUui/0qypY8u',
   NULL,
   strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 );
