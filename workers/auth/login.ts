@@ -107,4 +107,25 @@ app.get('/me', async (c) => {
   }
 });
 
+// 新增：退出登录
+app.post('/logout', async (c) => {
+  try {
+    // 清除 token cookie
+    c.header('Set-Cookie', 'token=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+    
+    return c.json<ApiResponse<{ success: true }>>({
+      success: true,
+      data: { success: true },
+      message: '退出登录成功'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Internal server error',
+      message: '退出登录失败'
+    }, 500);
+  }
+});
+
 export default app;

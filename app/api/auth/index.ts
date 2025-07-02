@@ -87,8 +87,24 @@ export async function logout(): Promise<void> {
   });
   
   if (!res.ok) {
-    const result: ApiResponse = await res.json();
-    throw new Error(result.error || 'Logout failed');
+    try {
+      // 先检查内容类型是否为 JSON
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const result: ApiResponse = await res.json();
+        throw new Error(result.error || 'Logout failed');
+      } else {
+        // 如果不是 JSON，则尝试读取文本
+        const text = await res.text();
+        throw new Error(text || `Logout failed with status: ${res.status}`);
+      }
+    } catch (e) {
+      if (e instanceof SyntaxError) {
+        // JSON 解析错误
+        throw new Error(`Logout failed with status: ${res.status}`);
+      }
+      throw e;
+    }
   }
 }
 
