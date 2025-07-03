@@ -20,6 +20,7 @@ export async function authMiddleware(c: Context<{ Bindings: WorkerEnv }>, next: 
   const authorization = c.req.header('Authorization')
   
   if (!authorization) {
+    console.error('认证失败: 缺少Authorization头')
     throw new ApiError(
       ApiErrorCodes.UNAUTHORIZED,
       '缺少认证信息',
@@ -29,6 +30,7 @@ export async function authMiddleware(c: Context<{ Bindings: WorkerEnv }>, next: 
   }
 
   if (!authorization.startsWith('Bearer ')) {
+    console.error('认证失败: Authorization格式错误')
     throw new ApiError(
       ApiErrorCodes.UNAUTHORIZED,
       '认证格式错误',
@@ -40,10 +42,22 @@ export async function authMiddleware(c: Context<{ Bindings: WorkerEnv }>, next: 
   const token = authorization.slice(7) // 移除 "Bearer " 前缀
 
   try {
+    // 检查JWT密钥是否存在
+    if (!c.env.JWT_SECRET) {
+      console.error('认证失败: JWT_SECRET环境变量未设置')
+      throw new ApiError(
+        ApiErrorCodes.INTERNAL_SERVER_ERROR,
+        '服务器配置错误',
+        'JWT_SECRET not configured',
+        500
+      )
+    }
+    
     const payload = await verify(token, c.env.JWT_SECRET) as unknown as CustomJWTPayload
     
     // 检查token是否过期
     if (payload.exp < Date.now() / 1000) {
+      console.error('认证失败: Token已过期')
       throw new ApiError(
         ApiErrorCodes.UNAUTHORIZED,
         'Token已过期',
@@ -64,6 +78,7 @@ export async function authMiddleware(c: Context<{ Bindings: WorkerEnv }>, next: 
       throw error
     }
     
+    console.error('认证失败:', error)
     throw new ApiError(
       ApiErrorCodes.UNAUTHORIZED,
       '无效的认证令牌',
@@ -103,6 +118,7 @@ export function getCurrentUser(c: Context): UserInfo {
   const user = c.get('user') as UserInfo | undefined
   
   if (!user) {
+    console.error('获取用户信息失败: 用户未登录')
     throw new ApiError(
       ApiErrorCodes.UNAUTHORIZED,
       '用户未登录',

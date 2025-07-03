@@ -1,22 +1,41 @@
 import { PrismaD1 } from '@prisma/adapter-d1'
 import { PrismaClient } from '@prisma/client'
-import type { 
-  CreateDocumentInput, 
-  UpdateDocumentInput, 
-  PatchDocumentInput,
-  DocumentQuery,
-  DocumentResponse, 
-  DocumentListResponse,
-  DocumentStats
-} from '../types/document'
 import { ApiError, ApiErrorCodes } from '../types/api'
+import type {
+    CreateDocumentInput,
+    DocumentListResponse,
+    DocumentQuery,
+    DocumentResponse,
+    DocumentStats,
+    PatchDocumentInput,
+    UpdateDocumentInput
+} from '../types/document'
 
 export class DocumentService {
   private prisma: PrismaClient
 
   constructor(db: D1Database) {
-    const adapter = new PrismaD1(db)
-    this.prisma = new PrismaClient({ adapter })
+    try {
+      if (!db) {
+        console.error('DocumentService: D1 database instance is undefined')
+        throw new ApiError(
+          ApiErrorCodes.INTERNAL_SERVER_ERROR,
+          '数据库连接未配置',
+          'D1 database instance is undefined'
+        )
+      }
+      
+      const adapter = new PrismaD1(db)
+      this.prisma = new PrismaClient({ adapter })
+      console.log('DocumentService: Prisma client initialized successfully')
+    } catch (error) {
+      console.error('DocumentService: Failed to initialize Prisma client:', error)
+      throw new ApiError(
+        ApiErrorCodes.INTERNAL_SERVER_ERROR,
+        '数据库连接失败',
+        error instanceof Error ? error.message : String(error)
+      )
+    }
   }
 
   // 创建文档
@@ -69,11 +88,16 @@ export class DocumentService {
       }
 
       if (tags) {
-        const tagArray = tags.split(',').map(tag => tag.trim())
-        where.tags = {
-          contains: tagArray[0] // 简单实现，仅支持单标签搜索
+        const tagArray = tags.split(',').map(tag => tag.trim()).filter(Boolean)
+        if (tagArray.length > 0) {
+          where.tags = {
+            contains: tagArray[0] // 简单实现，仅支持单标签搜索
+          }
         }
       }
+
+      console.log('DocumentService: Fetching documents with query:', JSON.stringify(query))
+      console.log('DocumentService: Where clause:', JSON.stringify(where))
 
       // 查询文档和总数
       const [documents, total] = await Promise.all([
@@ -96,6 +120,8 @@ export class DocumentService {
         }),
         this.prisma.document.count({ where }),
       ])
+
+      console.log(`DocumentService: Found ${documents.length} documents out of ${total} total`)
 
       return {
         documents: documents.map(doc => ({
