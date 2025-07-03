@@ -6,8 +6,9 @@ interface UseMarkdownEditorOptions {
   initialContent?: string;
   autoSave?: boolean;
   autoSaveDelay?: number;
-  onSave?: (content: string) => Promise<void>;
+  onSave?: (content: string, isAutoSave?: boolean) => Promise<void>;
   onContentChange?: (content: string) => void;
+  onError?: (error: Error, isAutoSave?: boolean) => void;
 }
 
 const defaultConfig: EditorConfig = {
@@ -29,6 +30,7 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
     autoSaveDelay = 3000,
     onSave,
     onContentChange,
+    onError,
   } = options;
 
   const [editorState, setEditorState] = useState<EditorState>({
@@ -43,6 +45,7 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
 
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const lastSavedContentRef = useRef(initialContent);
+  const lastAutoSaveRef = useRef<number>(0);
 
   // 更新内容
   const updateContent = useCallback((newContent: string) => {
@@ -50,35 +53,78 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
       ...prev,
       content: newContent,
       isDirty: newContent !== lastSavedContentRef.current,
+      error: null, // 清除之前的错误
     }));
 
     // 触发内容变化回调
     onContentChange?.(newContent);
 
-    // 自动保存逻辑
-    if (autoSave && onSave) {
+    // 自动保存逻辑 - 使用防抖
+    if (autoSave && onSave && newContent !== lastSavedContentRef.current) {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
 
       autoSaveTimeoutRef.current = setTimeout(() => {
-        handleSave(newContent);
+        handleAutoSave(newContent);
       }, autoSaveDelay);
     }
   }, [autoSave, autoSaveDelay, onSave, onContentChange]);
+
+  // 自动保存函数
+  const handleAutoSave = useCallback(async (content: string) => {
+    if (!onSave || content === lastSavedContentRef.current) {
+      return;
+    }
+
+    // 避免频繁自动保存
+    const now = Date.now();
+    if (now - lastAutoSaveRef.current < 1000) {
+      return;
+    }
+
+    try {
+      setEditorState(prev => ({ ...prev, isLoading: true, error: null }));
+      await onSave(content, true); // 标记为自动保存
+      lastSavedContentRef.current = content;
+      lastAutoSaveRef.current = now;
+      setEditorState(prev => ({
+        ...prev,
+        isDirty: false,
+        isLoading: false,
+      }));
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('自动保存失败');
+      console.warn('Auto save failed:', err);
+      
+      setEditorState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: err.message,
+      }));
+      
+      onError?.(err, true);
+    }
+  }, [onSave, onError]);
 
   // 手动保存
   const handleSave = useCallback(async (content?: string) => {
     const contentToSave = content ?? editorState.content;
     
-    if (!onSave || contentToSave === lastSavedContentRef.current) {
+    if (!onSave) {
       return;
+    }
+
+    // 清除自动保存定时器
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+      autoSaveTimeoutRef.current = null;
     }
 
     setEditorState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      await onSave(contentToSave);
+      await onSave(contentToSave, false); // 标记为手动保存
       lastSavedContentRef.current = contentToSave;
       setEditorState(prev => ({
         ...prev,
@@ -86,13 +132,44 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
         isLoading: false,
       }));
     } catch (error) {
+      const err = error instanceof Error ? error : new Error('保存失败');
       setEditorState(prev => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Save failed',
+        error: err.message,
       }));
+      
+      onError?.(err, false);
+      throw err; // 重新抛出错误让调用者处理
     }
-  }, [editorState.content, onSave]);
+  }, [editorState.content, onSave, onError]);
+
+  // 强制保存（忽略内容是否改变）
+  const forceSave = useCallback(async () => {
+    if (!onSave) return;
+    
+    setEditorState(prev => ({ ...prev, isLoading: true, error: null }));
+    
+    try {
+      await onSave(editorState.content, false);
+      lastSavedContentRef.current = editorState.content;
+      setEditorState(prev => ({
+        ...prev,
+        isDirty: false,
+        isLoading: false,
+      }));
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('保存失败');
+      setEditorState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: err.message,
+      }));
+      
+      onError?.(err, false);
+      throw err;
+    }
+  }, [editorState.content, onSave, onError]);
 
   // 更新视图模式
   const setViewMode = useCallback((mode: ViewMode) => {
@@ -112,6 +189,30 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
     setEditorState(prev => ({
       ...prev,
       cursorPosition: { line, column },
+    }));
+  }, []);
+
+  // 清除错误
+  const clearError = useCallback(() => {
+    setEditorState(prev => ({ ...prev, error: null }));
+  }, []);
+
+  // 重置编辑器状态
+  const resetEditor = useCallback((newContent: string = '') => {
+    // 清除自动保存定时器
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+      autoSaveTimeoutRef.current = null;
+    }
+
+    lastSavedContentRef.current = newContent;
+    setEditorState(prev => ({
+      ...prev,
+      content: newContent,
+      isDirty: false,
+      isLoading: false,
+      error: null,
+      cursorPosition: { line: 1, column: 1 },
     }));
   }, []);
 
@@ -247,6 +348,9 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
     // 内容操作
     updateContent,
     handleSave,
+    forceSave,
+    resetEditor,
+    clearError,
     
     // 视图控制
     setViewMode,

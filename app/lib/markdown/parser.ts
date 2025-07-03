@@ -1,6 +1,30 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 
+// 添加缓存机制
+const parseCache = new Map<string, string>();
+const CACHE_SIZE_LIMIT = 100; // 最多缓存100个结果
+
+// 缓存管理
+function getCachedResult(content: string, options: ParseOptions): string | null {
+  const cacheKey = `${content}-${JSON.stringify(options)}`;
+  return parseCache.get(cacheKey) || null;
+}
+
+function setCachedResult(content: string, options: ParseOptions, result: string): void {
+  const cacheKey = `${content}-${JSON.stringify(options)}`;
+  
+  // 如果缓存太大，清除最老的条目
+  if (parseCache.size >= CACHE_SIZE_LIMIT) {
+    const firstKey = parseCache.keys().next().value;
+    if (firstKey) {
+      parseCache.delete(firstKey);
+    }
+  }
+  
+  parseCache.set(cacheKey, result);
+}
+
 // 配置 marked 解析器
 marked.setOptions({
   breaks: true,
@@ -73,6 +97,12 @@ export interface ParseOptions {
 export function parseMarkdown(markdown: string, options: ParseOptions = {}): string {
   const { enableMath = true, enableMermaid = true, sanitize = true } = options;
 
+  // 检查缓存
+  const cachedResult = getCachedResult(markdown, options);
+  if (cachedResult) {
+    return cachedResult;
+  }
+
   try {
     let html = marked(markdown) as string;
 
@@ -110,6 +140,9 @@ export function parseMarkdown(markdown: string, options: ParseOptions = {}): str
       });
     }
 
+    // 缓存结果
+    setCachedResult(markdown, options, html);
+
     return html;
   } catch (error) {
     console.error('Markdown parsing error:', error);
@@ -144,12 +177,37 @@ function processMermaidDiagrams(html: string): string {
 }
 
 /**
- * 计算文档统计信息
+ * 计算文档统计信息（优化版本）
  */
 export function calculateDocumentStats(content: string) {
-  const wordCount = content.trim().split(/\s+/).filter(word => word.length > 0).length;
+  if (!content.trim()) {
+    return {
+      wordCount: 0,
+      characterCount: 0,
+      characterCountNoSpaces: 0,
+      readingTime: 0,
+      paragraphCount: 0
+    };
+  }
+
+  // 使用更高效的字符串操作
+  const cleanContent = content
+    .replace(/```[\s\S]*?```/g, '') // 移除代码块
+    .replace(/`[^`]*`/g, '') // 移除行内代码
+    .replace(/#{1,6}\s/g, '') // 移除标题标记
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // 移除粗体标记
+    .replace(/\*([^*]+)\*/g, '$1') // 移除斜体标记
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // 移除链接，保留文本
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1'); // 移除图片，保留alt文本
+  
+  // 优化的字数统计
   const characterCount = content.length;
   const characterCountNoSpaces = content.replace(/\s/g, '').length;
+  
+  // 中英文混合字数统计
+  const chineseChars = (cleanContent.match(/[\u4e00-\u9fa5]/g) || []).length;
+  const englishWords = (cleanContent.match(/[a-zA-Z]+/g) || []).length;
+  const wordCount = chineseChars + englishWords;
   
   // 估算阅读时间（平均每分钟200字）
   const readingTime = Math.ceil(wordCount / 200);
@@ -164,4 +222,11 @@ export function calculateDocumentStats(content: string) {
     readingTime,
     paragraphCount
   };
+}
+
+/**
+ * 清除解析缓存
+ */
+export function clearParseCache(): void {
+  parseCache.clear();
 } 

@@ -92,17 +92,17 @@ Testing Strategy
 Structure tests across four key dimensions:
 
 API Testing
-- Save test in api.test.ts
+- Save test in api folder
 
 Component Testing
-- Save test in components.test.tsx
+- Save test in component folder
 
 Database Testing
-- Save test in database.test.ts
+- Save test in database folder
 
 
 Validation Testing
-- Save validation.test.ts
+- Save validation folder
 
 Development Workflow
 - Use Vite for fast development builds.
