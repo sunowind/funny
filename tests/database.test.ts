@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateUserInput, UpdateUserInput } from '../workers/db/schema';
 import {
-  checkUserExists,
-  createUser,
-  deleteUser,
-  findUserById,
-  findUserByIdentifier,
-  updateUser
+    checkUserExists,
+    createUser,
+    deleteUser,
+    findUserById,
+    findUserByIdentifier,
+    updateUser
 } from '../workers/db/user';
 import {
-  createMockPrisma,
-  mockUsers,
-  setupTestEnvironment,
-  testInputs
+    createMockPrisma,
+    mockUsers,
+    setupTestEnvironment,
+    testInputs
 } from './helpers/test-utils';
 
 // Mock the Prisma client creation
@@ -607,7 +607,7 @@ describe('Document Database Operations', () => {
       const documentData = {
         title: '关联测试',
         content: '测试用户关联',
-        authorId: 'user-1'
+        authorId: mockUsers.validUser.id
       };
 
       // Mock that user exists
@@ -642,7 +642,7 @@ describe('Document Database Operations', () => {
       const result = await mockDocumentOperations.createDocument(documentData);
 
       expect(result.author).toBeDefined();
-      expect(result.author.id).toBe('user-1');
+      expect(result.author.id).toBe(mockUsers.validUser.id);
     });
 
     it('should cascade delete user documents when user is deleted', async () => {
@@ -664,13 +664,13 @@ describe('Document Database Operations', () => {
         });
       };
 
-      const result = await deleteUserWithDocuments('user-1');
+      const result = await deleteUserWithDocuments(mockUsers.validUser.id);
 
       expect(mockPrisma.document.deleteMany).toHaveBeenCalledWith({
-        where: { authorId: 'user-1' }
+        where: { authorId: mockUsers.validUser.id }
       });
       expect(mockPrisma.user.delete).toHaveBeenCalledWith({
-        where: { id: 'user-1' }
+        where: { id: mockUsers.validUser.id }
       });
       expect(result).toEqual(mockUsers.validUser);
     });
