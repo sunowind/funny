@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateUserInput, UpdateUserInput } from '../workers/db/schema';
 import {
-    checkUserExists,
-    createUser,
-    deleteUser,
-    findUserById,
-    findUserByIdentifier,
-    updateUser
+  checkUserExists,
+  createUser,
+  deleteUser,
+  findUserById,
+  findUserByIdentifier,
+  updateUser
 } from '../workers/db/user';
 import {
-    createMockPrisma,
-    mockUsers,
-    setupTestEnvironment,
-    testInputs
+  createMockPrisma,
+  mockUsers,
+  setupTestEnvironment,
+  testInputs
 } from './helpers/test-utils';
 
 // Mock the Prisma client creation
@@ -344,7 +344,23 @@ describe('Document Database Operations', () => {
   beforeEach(() => {
     setupTestEnvironment();
     mockPrisma = createMockPrisma();
+    
+    // Add document operations to mockPrisma
+    mockPrisma.document = {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+    };
+    
     vi.clearAllMocks();
+    
+    // Reset all mock document operations
+    Object.values(mockDocumentOperations).forEach(mock => {
+      mock.mockReset();
+    });
   });
 
   describe('Document Queries', () => {

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
+import { calculateDocumentStats, parseMarkdown } from '../app/lib/markdown/parser';
 import {
-    ApiErrorSchema,
-    AuthResponseSchema,
-    CreateUserSchema,
-    LoginUserSchema,
-    UpdateUserSchema,
-    UserResponseSchema
+  ApiErrorSchema,
+  AuthResponseSchema,
+  CreateUserSchema,
+  LoginUserSchema,
+  UpdateUserSchema,
+  UserResponseSchema
 } from '../workers/db/schema';
-import { parseMarkdown, calculateDocumentStats } from '../app/lib/markdown/parser';
 import { mockUsers, testInputs } from './helpers/test-utils';
 
 // Mock DOMPurify
@@ -542,6 +542,158 @@ describe('Content Security Validation', () => {
       const result = parseMarkdown(binaryContent);
       
       expect(result).toBeDefined();
+    });
+  });
+
+  describe('Advanced Content Validation', () => {
+    it('should validate markdown syntax', () => {
+      const validMarkdown = [
+        '# Valid heading',
+        '## Another heading',
+        '**bold text**',
+        '*italic text*',
+        '`inline code`',
+        '[link text](http://example.com)',
+        '![alt text](http://example.com/image.jpg)'
+      ];
+
+      validMarkdown.forEach(content => {
+        const result = parseMarkdown(content);
+        expect(result).toBeDefined();
+        expect(result.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should handle nested markdown structures', () => {
+      const nestedMarkdown = `
+# Main Heading
+
+## Sub Heading
+
+This is a paragraph with **bold** and *italic* text.
+
+### List Section
+
+- Item 1 with \`code\`
+- Item 2 with [link](http://example.com)
+  - Nested item
+  - Another nested item
+
+> This is a blockquote with **formatting**
+
+#### Code Section
+
+\`\`\`javascript
+function test() {
+  return "Hello, world!";
+}
+\`\`\`
+
+##### Table Section
+
+| Column 1 | Column 2 |
+|----------|----------|
+| Cell 1   | Cell 2   |
+      `;
+
+      const result = parseMarkdown(nestedMarkdown);
+      
+      expect(result).toBeDefined();
+      expect(result).toContain('Main Heading');
+      expect(result).toContain('Sub Heading');
+      expect(result).toContain('bold');
+      expect(result).toContain('italic');
+      expect(result).toContain('Item 1');
+      expect(result).toContain('blockquote');
+      expect(result).toContain('function test');
+      expect(result).toContain('Column 1');
+    });
+
+    it('should validate document structure integrity', () => {
+      const structuredDocument = `
+# Document Title
+
+## Introduction
+
+This is the introduction section.
+
+### Key Points
+
+1. First key point
+2. Second key point
+3. Third key point
+
+## Main Content
+
+### Section A
+
+Content for section A.
+
+### Section B
+
+Content for section B with:
+
+- Bullet point 1
+- Bullet point 2
+
+## Conclusion
+
+Final thoughts and summary.
+      `;
+
+      const result = parseMarkdown(structuredDocument);
+      const stats = calculateDocumentStats(structuredDocument);
+      
+      expect(result).toBeDefined();
+      expect(stats.wordCount).toBeGreaterThan(0);
+      expect(stats.characterCount).toBeGreaterThan(0);
+      expect(stats.paragraphCount).toBeGreaterThan(0);
+    });
+
+    it('should handle markdown with HTML comments', () => {
+      const markdownWithComments = `
+# Title
+
+<!-- This is a comment -->
+
+Content here.
+
+<!-- Another comment -->
+
+More content.
+      `;
+
+      const result = parseMarkdown(markdownWithComments);
+      
+      expect(result).toBeDefined();
+      expect(result).toContain('Title');
+      expect(result).toContain('Content here');
+      expect(result).toContain('More content');
+    });
+
+    it('should validate link structures', () => {
+      const linksMarkdown = `
+# Links Test
+
+[Regular link](https://example.com)
+[Link with title](https://example.com "Example Site")
+[Reference link][ref]
+[Another reference][ref2]
+
+[ref]: https://example.com
+[ref2]: https://example.org "Example Org"
+
+Email: <user@example.com>
+URL: <https://example.com>
+      `;
+
+      const result = parseMarkdown(linksMarkdown);
+      
+      expect(result).toBeDefined();
+      expect(result).toContain('Regular link');
+      expect(result).toContain('Link with title');
+      expect(result).toContain('Reference link');
+      expect(result).toContain('user@example.com');
     });
   });
 }); 

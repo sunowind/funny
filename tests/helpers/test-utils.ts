@@ -1,4 +1,4 @@
-import { vi, expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import type { ApiResponse } from '../../workers/types/api';
 import type { User } from '../../workers/types/user';
 
@@ -17,8 +17,14 @@ export const mockUsers = {
     username: 'user',
     email: 'user@example.com',
     passwordHash: '$2b$10$abcdefghijklmnopqrstuvwxyz123456789',
-    avatar: undefined,
     createdAt: '2023-01-02T00:00:00Z',
+  } as User,
+  validUser: {
+    id: 'user_3',
+    username: 'testuser',
+    email: 'test@example.com',
+    passwordHash: '$2b$10$abcdefghijklmnopqrstuvwxyz123456789',
+    createdAt: '2023-01-03T00:00:00Z',
   } as User
 };
 
